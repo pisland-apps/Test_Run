@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v375";
+        const APP_VERSION = "v379";
         const APP_VERSION_DATE = "2026-09-14";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -464,13 +464,63 @@
             ["#10b981", "#14b8a6"], ["#0ea5e9", "#38bdf8"], ["#ef4444", "#f87171"],
             ["#8b5cf6", "#c084fc"], ["#0891b2", "#22d3ee"],
         ];
-        function accountAvatarHTML(name) {
+        // v379: optional `logo` (a center-cropped square PNG data URL, set via the Add/Edit
+        // Account form's Upload button — see handleAccLogoFileSelected() below, which reuses
+        // cropImageToSquare() from the Receipt Attachments/Companion features) overrides the
+        // gradient-letter avatar wherever an account is listed. Falls back to the letter avatar
+        // exactly as before when no logo is set, so existing accounts are unaffected.
+        function accountAvatarHTML(name, logo) {
+            if (logo) {
+                return `<div class="account-avatar" style="padding:0; overflow:hidden; background:var(--chip-bg);"><img src="${logo}" alt="" style="width:100%; height:100%; object-fit:cover; display:block;"></div>`;
+            }
             const str = String(name || "").trim();
             let hash = 0;
             for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
             const [c1, c2] = ACCOUNT_AVATAR_GRADIENTS[hash % ACCOUNT_AVATAR_GRADIENTS.length];
             const initial = escapeHtml((str.charAt(0) || "?").toUpperCase());
             return `<div class="account-avatar" style="background:linear-gradient(135deg, ${c1}, ${c2});">${initial}</div>`;
+        }
+
+        // --- Account Logo upload (form-local staging, same shape as the Companion custom-photo
+        // upload above) — held in a module-level var rather than written straight to IndexedDB,
+        // since the account record itself isn't saved until the form's Save button is tapped.
+        let stagedAccLogoDataUrl = null; // null = unchanged from whatever editAccount() loaded; "" = explicitly removed
+
+        function triggerAccLogoUpload() {
+            document.getElementById("newAccLogoFile").click();
+        }
+
+        function renderAccLogoPreview(dataUrl) {
+            const preview = document.getElementById("newAccLogoPreview");
+            const removeBtn = document.getElementById("newAccLogoRemoveBtn");
+            if (dataUrl) {
+                preview.innerHTML = `<img src="${dataUrl}" alt="" style="width:100%; height:100%; object-fit:cover; display:block;">`;
+                removeBtn.style.display = "";
+            } else {
+                preview.innerHTML = "None";
+                removeBtn.style.display = "none";
+            }
+        }
+
+        async function handleAccLogoFileSelected(el) {
+            const file = el.files && el.files[0];
+            el.value = ""; // allow re-selecting the same file later
+            if (!file) return;
+            try {
+                const raw = await readFileAsDataUrl(file);
+                // Same square-crop + PNG (transparency-preserving) treatment as the Companion
+                // custom photo upload — 128px is plenty for a small avatar-sized logo.
+                const squared = await cropImageToSquare(raw, 128, 0.9);
+                stagedAccLogoDataUrl = squared;
+                renderAccLogoPreview(squared);
+            } catch (err) {
+                alert("Couldn't read that image — please try a different file.");
+            }
+        }
+
+        function removeAccLogo() {
+            stagedAccLogoDataUrl = "";
+            renderAccLogoPreview(null);
         }
 
         // v163 美化方案 point 5: icon + color for an account Group's section-header pill on the
@@ -2682,6 +2732,17 @@
             return `${isNeg ? "-" : ""}${sym}${absStr}`;
         }
 
+        // v377: same formatting as formatCurrency() (thousands separators, 2dp, sign placement)
+        // but without the currency symbol — used only by the mobile Monthly Trend table, where
+        // dropping "RM"/"S$"/etc. off every cell is what makes Month/Income/Expense/Balance fit
+        // back on one row instead of wrapping Balance onto its own line. The currency itself is
+        // stated once, in the caption under the table, instead of repeated on every figure.
+        function formatCurrencyNumberOnly(amount) {
+            const isNeg = amount < 0;
+            const absStr = Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return `${isNeg ? "-" : ""}${absStr}`;
+        }
+
         // Formats a balance-type amount (net worth, account balance, member totals — anything
         // that can legitimately sit in deficit) as HTML: negative amounts render in red,
         // parenthesized on the absolute value (accounting convention), e.g. (S$8,648.94).
@@ -4578,13 +4639,11 @@
             return Math.round(val).toString();
         }
 
-        // v375: below 480px the 4-column table (Month/Income/Expense/Balance) doesn't fit a
-        // phone's width at readable figures — 5-6 digit RM amounts either shrink to the point of
-        // being unreadable or clip off the right edge (the Balance column, worst-hit). Rather
-        // than shrinking further, mobile gets a stacked one-value-per-line layout instead: same
-        // data, same colors, just Month as a heading with Income/Expense/Balance underneath it
-        // as label-left/value-right rows, each with the full row's width to itself. Desktop/
-        // tablet keeps the original 4-column table.
+        // v377: dropping the "RM"/currency-symbol prefix off every cell (formatCurrencyNumberOnly)
+        // shrinks each figure enough that Month/Income/Expense/Balance fit back on a single row
+        // on a phone screen — no more demoting Balance to its own line (v376). The currency is
+        // stated once instead, in a small caption under the table, same idea as the "Figures are
+        // in ... base currency" caption already used on the Total Bill Summary report page.
         function renderMonthlyTrendTable(months) {
             const wrap = document.getElementById("monthlyTrendTableWrap");
             if (!wrap) return;
@@ -4597,21 +4656,33 @@
             const totalExpense = months.reduce((s, mo) => s + mo.expense, 0);
 
             if (isMobile) {
-                const line = (label, value, color, bold) => `
-                    <div style="display:flex; justify-content:space-between; align-items:baseline; padding:2px 0;">
-                        <span style="font-size:0.72rem; color:var(--text-muted); ${bold ? "font-weight:700;" : ""}">${escapeHtml(label)}</span>
-                        <span style="font-size:0.86rem; color:${color}; ${bold ? "font-weight:800;" : ""}">${formatCurrency(value, baseCurrency)}</span>
-                    </div>`;
-                const monthBlock = (label, income, expense, opts = {}) => `
-                    <div style="padding:10px 4px; ${opts.bold ? "background:rgba(127,127,127,0.06); border-radius:8px;" : "border-bottom:1px solid var(--border-color);"}">
-                        <div style="font-size:0.78rem; font-weight:800; margin-bottom:3px;">${escapeHtml(label)}</div>
-                        ${line("Income", income, "var(--income-color)")}
-                        ${line("Expense", expense, "var(--expense-color)")}
-                        ${line("Balance", income - expense, balanceColor(income - expense), true)}
-                    </div>`;
-                let blocks = months.map(mo => monthBlock(mo.label, mo.income, mo.expense)).join("");
-                blocks += monthBlock("Total", totalIncome, totalExpense, { bold: true });
-                wrap.innerHTML = `<div>${blocks}</div>`;
+                const row = (label, income, expense, opts = {}) => {
+                    const balance = income - expense;
+                    const weight = opts.bold ? "font-weight:800;" : "";
+                    const shade = opts.bold ? "background:rgba(127,127,127,0.06);" : "";
+                    return `
+                        <tr style="${shade}">
+                            <td style="padding:8px 6px; ${weight}">${escapeHtml(label)}</td>
+                            <td style="padding:8px 6px; text-align:right; color:var(--income-color); ${weight}">${formatCurrencyNumberOnly(income)}</td>
+                            <td style="padding:8px 6px; text-align:right; color:var(--expense-color); ${weight}">${formatCurrencyNumberOnly(expense)}</td>
+                            <td style="padding:8px 6px; text-align:right; color:${balanceColor(balance)}; ${weight}">${formatCurrencyNumberOnly(balance)}</td>
+                        </tr>`;
+                };
+                let rows = months.map(mo => row(mo.label, mo.income, mo.expense)).join("");
+                rows += row("Total", totalIncome, totalExpense, { bold: true });
+                wrap.innerHTML = `
+                    <table style="width:100%; border-collapse:collapse; font-size:0.78rem;">
+                        <thead>
+                            <tr style="text-align:left; color:var(--text-muted); font-size:0.6rem; text-transform:uppercase; border-bottom:2px solid var(--border-color);">
+                                <th style="padding:6px 6px;">Month</th>
+                                <th style="padding:6px 6px; text-align:right;">Income</th>
+                                <th style="padding:6px 6px; text-align:right;">Expense</th>
+                                <th style="padding:6px 6px; text-align:right;">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <p style="font-size:0.66rem; color:var(--text-muted); text-align:right; margin:6px 4px 0;">Figures in ${escapeHtml(baseCurrency)}</p>`;
                 return;
             }
 
@@ -5599,6 +5670,8 @@
             document.getElementById("newAccGroup").value = DEFAULT_ACCOUNT_GROUP;
             handleAccGroupChange();
             document.getElementById("newAccBal").value = "0";
+            stagedAccLogoDataUrl = null;
+            renderAccLogoPreview(null);
             populateNewAccountCurrencySelect(baseCurrency);
             document.getElementById("accountFormHeaderTitle").textContent = "Create New Account";
             document.getElementById("accFormSubmitBtn").textContent = "Create Account";
@@ -5677,6 +5750,21 @@
                 defaultPaymentAccountId: (type === "creditcard") ? (document.getElementById("newAccCcPaymentAccount").value || null) : null,
                 memberIds: getCheckedAccountMemberIds()
             };
+
+            // Logo (v379): stagedAccLogoDataUrl is null when the form's Upload/Remove controls
+            // were never touched this time round — for an existing account that means "keep
+            // whatever was already saved" (looked up fresh rather than trusted from an earlier
+            // in-memory list, same caution as the rest of this save path), for a brand-new
+            // account it just means "no logo". "" means the Remove button was explicitly tapped.
+            if (stagedAccLogoDataUrl !== null) {
+                record.logo = stagedAccLogoDataUrl;
+            } else if (!isNewAccount) {
+                const existingAccounts = await readAllDB(STORES.ACCOUNTS);
+                const existing = existingAccounts.find(a => a.id === id);
+                record.logo = (existing && existing.logo) || "";
+            } else {
+                record.logo = "";
+            }
 
             if (type === "normal" || type === "creditcard") {
                 const balInput = document.getElementById("newAccBal").value;
@@ -6178,7 +6266,7 @@
 
                 html += `
                     <div class="config-item account-card" style="cursor:pointer;" data-click="navigateToLedgerPage" data-id="${escapeHtml(a.id)}" data-back="accounts">
-                        ${accountAvatarHTML(a.name)}
+                        ${accountAvatarHTML(a.name, a.logo)}
                         <div class="account-card-body">
                             <div class="account-card-toprow">
                                 <span class="account-card-name">${escapeHtml(a.name)}</span>
@@ -6252,6 +6340,8 @@
 
             document.getElementById("editAccountId").value = account.id;
             document.getElementById("newAccName").value = account.name;
+            stagedAccLogoDataUrl = null; // unchanged unless the user picks/removes a new one below
+            renderAccLogoPreview(account.logo || null);
             document.getElementById("newAccRef").value = account.accountRef || "";
             document.getElementById("newAccGroup").value = account.group || DEFAULT_ACCOUNT_GROUP;
             await handleAccGroupChange(
@@ -9184,7 +9274,7 @@
 
                 html += `
                     <div class="config-item account-card" style="cursor:pointer;" data-click="navigateToLedgerPage" data-id="${escapeHtml(a.id)}" data-back="member">
-                        ${accountAvatarHTML(a.name)}
+                        ${accountAvatarHTML(a.name, a.logo)}
                         <div class="account-card-body">
                             <div class="account-card-toprow">
                                 <span class="account-card-name">${escapeHtml(a.name)}</span>
@@ -17934,6 +18024,10 @@
             }
 
             const balanceColor = (v) => v >= 0 ? "var(--income-color)" : "var(--expense-color)";
+            // v378: the Period column is sticky (position:sticky; left:0) so once you've scrolled
+            // right to read Balance on a narrow phone, the row's year doesn't scroll away with it —
+            // every row still needs its own solid background behind the sticky cell (matching this
+            // row's shade, not just the card's) or the columns scrolling underneath show through.
             // v268: the Balance cell drills through to the Net Savings Statement (income/expense
             // by category) scoped to that same row's year — "Total" maps to "all" years, and each
             // year row maps to that specific year. "Yearly Average" is a computed metric with no
@@ -17947,9 +18041,14 @@
                 const balanceAttrs = clickable
                     ? `style="padding:9px 10px; text-align:right; color:${balanceColor(balance)}; ${weight} cursor:pointer; text-decoration:underline; text-decoration-style:dotted; text-underline-offset:3px;" data-click="totalSummaryBalanceClick" data-year="${escapeHtml(opts.year)}" title="View Net Savings Statement"`
                     : `style="padding:9px 10px; text-align:right; color:${balanceColor(balance)}; ${weight}"`;
+                // v378: the sticky cell paints its own background (var(--card-bg), plus the row's
+                // own shade tint layered on top for shaded/bold rows) — position:sticky doesn't
+                // inherit the <tr>'s background the way a normal static cell does, so without this
+                // the amount columns would show through the "frozen" Period cell while scrolling.
+                const periodBgLayer = opts.shade ? "linear-gradient(rgba(127,127,127,0.06), rgba(127,127,127,0.06)), var(--card-bg)" : "var(--card-bg)";
                 return `
                     <tr style="${shade}">
-                        <td style="padding:9px 10px; ${weight}">${escapeHtml(label)}</td>
+                        <td style="padding:9px 10px; ${weight} position:sticky; left:0; background:${periodBgLayer}; box-shadow: 2px 0 4px -2px rgba(0,0,0,0.3);">${escapeHtml(label)}</td>
                         <td style="padding:9px 10px; text-align:right; color:var(--income-color); ${weight}">${formatCurrency(income, baseCurrency)}</td>
                         <td style="padding:9px 10px; text-align:right; color:var(--expense-color); ${weight}">${formatCurrency(expense, baseCurrency)}</td>
                         <td ${balanceAttrs}>${formatCurrency(balance, baseCurrency)}</td>
@@ -17967,7 +18066,7 @@
                 <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
                     <thead>
                         <tr style="text-align:left; color:var(--text-muted); font-size:0.68rem; text-transform:uppercase; border-bottom:2px solid var(--border-color);">
-                            <th style="padding:6px 10px;">Period</th>
+                            <th style="padding:6px 10px; position:sticky; left:0; background:var(--card-bg); box-shadow: 2px 0 4px -2px rgba(0,0,0,0.3);">Period</th>
                             <th style="padding:6px 10px; text-align:right;">Income</th>
                             <th style="padding:6px 10px; text-align:right;">Expense</th>
                             <th style="padding:6px 10px; text-align:right;">Balance</th>
@@ -19072,6 +19171,8 @@
             selectCompanion: (el) => selectCompanion(el),
             triggerCompanionCustomImageUpload: () => triggerCompanionCustomImageUpload(),
             removeCompanionCustomPhoto: (el) => removeCompanionCustomPhoto(el),
+            triggerAccLogoUpload: () => triggerAccLogoUpload(),
+            removeAccLogo: () => removeAccLogo(),
             savePlannedPaymentFromTxForm: () => savePlannedPaymentFromTxForm(),
             plannedPaymentRowTap: (el) => plannedPaymentRowTap(el),
             closePlannedPaymentActionsModal: () => closePlannedPaymentActionsModal(),
@@ -19262,6 +19363,7 @@
             syncTransactionCurrency: () => syncTransactionCurrency(),
             handleTxAttachmentsSelected: (el, e) => handleTxAttachmentsSelected(e),
             handleCompanionCustomImageSelected: (el) => handleCompanionCustomImageSelected(el),
+            handleAccLogoFileSelected: (el) => handleAccLogoFileSelected(el),
             toggleTxPlannedRepeatFields: () => toggleTxPlannedRepeatFields(),
             recalcResolveFdMaturity: () => recalcResolveFdMaturity(),
             recalcFdOpeningRowMaturity: (el) => recalcFdOpeningRowMaturity(el.dataset.rowId),
