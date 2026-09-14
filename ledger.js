@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v379";
+        const APP_VERSION = "v380";
         const APP_VERSION_DATE = "2026-09-14";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -455,6 +455,45 @@
             return `<span style="display:inline-flex; align-items:center; justify-content:center; width:${size}px; height:${size}px; min-width:${size}px; border-radius:50%; background:${bg}; color:${fg}; font-weight:800; font-size:${fontSize}px; box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.65), 0 1px 2px rgba(0,0,0,0.12); flex-shrink:0;">${escapeHtml(glyph)}</span>`;
         }
 
+        // v379: preset icons for common banks/e-wallets/cards — deliberately plain
+        // color+abbreviation badges (same idiom as CURRENCY_ICON_GLYPHS above), NOT reproductions
+        // of any institution's actual logo/mark, so there's no trademark/copyright concern with
+        // shipping them baked into the app. Purely a quick visual shorthand the user can pick
+        // instead of uploading their own image.
+        const PRESET_ACCOUNT_ICONS = [
+            { id: "hlb", label: "Hong Leong Bank", glyph: "HLB", bg: "#C8102E" },
+            { id: "cimb", label: "CIMB Bank", glyph: "CIMB", bg: "#7A1E2B" },
+            { id: "hsbc", label: "HSBC", glyph: "HSBC", bg: "#DB0011" },
+            { id: "pbb", label: "Public Bank", glyph: "PBB", bg: "#7A0C2E" },
+            { id: "rhb", label: "RHB Bank", glyph: "RHB", bg: "#0033A0" },
+            { id: "alliance", label: "Alliance Bank", glyph: "ABMB", bg: "#005EB8" },
+            { id: "dbs", label: "DBS Bank", glyph: "DBS", bg: "#E2231A" },
+            { id: "posb", label: "POSB", glyph: "POSB", bg: "#EE3124" },
+            { id: "wise", label: "WISE", glyph: "Wise", bg: "#00B9AB" },
+            { id: "setel", label: "SETEL", glyph: "Setel", bg: "#00A19A" },
+            { id: "tng", label: "TNG", glyph: "TnG", bg: "#003DA5" },
+            { id: "paylah", label: "PayLah", glyph: "Lah!", bg: "#EE3124" },
+            { id: "kwsp", label: "KWSP", glyph: "KWSP", bg: "#00693E" },
+            { id: "cpf", label: "CPF", glyph: "CPF", bg: "#F7941D" },
+            { id: "asm", label: "ASM", glyph: "ASM", bg: "#B8860B" },
+            { id: "asm2", label: "ASM2", glyph: "ASM2", bg: "#A0740A" },
+            { id: "asm3", label: "ASM3", glyph: "ASM3", bg: "#8A6208" },
+            { id: "asnb", label: "ASNB", glyph: "ASNB", bg: "#6B4C08" },
+            { id: "hlam", label: "Hongleong Asset Mgmt", glyph: "HLAM", bg: "#D14D5A" },
+            { id: "pmf", label: "Public Mutual Fund", glyph: "PMF", bg: "#9C2B45" },
+            { id: "visa", label: "VISA card", glyph: "VISA", bg: "#1A1F71" },
+            { id: "mastercard", label: "MASTER card", glyph: "MC", bg: "linear-gradient(135deg, #EB001B, #F79E1B)" },
+            { id: "mykasih", label: "My Kasih", glyph: "MyK", bg: "#E07B1A" },
+            { id: "cash", label: "Cash", glyph: "💵", bg: "#16A34A" },
+            { id: "fxcash", label: "Foreign Cash", glyph: "🌐", bg: "#0E7490" },
+        ];
+        function presetAccountIconHTML(preset, size) {
+            size = size || 40;
+            const fontSize = /\p{Emoji}/u.test(preset.glyph) ? size * 0.5 : (preset.glyph.length > 3 ? size * 0.28 : size * 0.34);
+            const background = preset.bg.indexOf("gradient") !== -1 ? preset.bg : preset.bg;
+            return `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:${background}; color:#fff; font-weight:800; font-size:${fontSize}px; letter-spacing:-0.02em;">${escapeHtml(preset.glyph)}</div>`;
+        }
+
         // v163 美化方案 point 2: deterministic gradient-avatar initial for an Accounts-page row —
         // same hash→palette idiom as currencyBadgeColor() above, so a given account name always
         // lands on the same two colors across reloads without needing a stored color field on
@@ -469,9 +508,13 @@
         // cropImageToSquare() from the Receipt Attachments/Companion features) overrides the
         // gradient-letter avatar wherever an account is listed. Falls back to the letter avatar
         // exactly as before when no logo is set, so existing accounts are unaffected.
-        function accountAvatarHTML(name, logo) {
+        function accountAvatarHTML(name, logo, iconPreset) {
             if (logo) {
                 return `<div class="account-avatar" style="padding:0; overflow:hidden; background:var(--chip-bg);"><img src="${logo}" alt="" style="width:100%; height:100%; object-fit:cover; display:block;"></div>`;
+            }
+            const preset = iconPreset && PRESET_ACCOUNT_ICONS.find(p => p.id === iconPreset);
+            if (preset) {
+                return `<div class="account-avatar" style="padding:0; overflow:hidden;">${presetAccountIconHTML(preset, 40)}</div>`;
             }
             const str = String(name || "").trim();
             let hash = 0;
@@ -484,22 +527,50 @@
         // --- Account Logo upload (form-local staging, same shape as the Companion custom-photo
         // upload above) — held in a module-level var rather than written straight to IndexedDB,
         // since the account record itself isn't saved until the form's Save button is tapped.
-        let stagedAccLogoDataUrl = null; // null = unchanged from whatever editAccount() loaded; "" = explicitly removed
+        // Custom upload and preset-icon selection are mutually exclusive: picking one clears
+        // whichever the user had staged for the other, so the account never ends up with both.
+        let stagedAccLogoDataUrl = null; // null = unchanged; "" = explicitly removed; else a data URL
+        let stagedAccIconPreset = null;  // null = unchanged; "" = explicitly removed; else a preset id
 
         function triggerAccLogoUpload() {
             document.getElementById("newAccLogoFile").click();
         }
 
-        function renderAccLogoPreview(dataUrl) {
+        function renderAccLogoPreview(dataUrl, iconPreset) {
             const preview = document.getElementById("newAccLogoPreview");
             const removeBtn = document.getElementById("newAccLogoRemoveBtn");
+            const preset = iconPreset && PRESET_ACCOUNT_ICONS.find(p => p.id === iconPreset);
             if (dataUrl) {
                 preview.innerHTML = `<img src="${dataUrl}" alt="" style="width:100%; height:100%; object-fit:cover; display:block;">`;
+                removeBtn.style.display = "";
+            } else if (preset) {
+                preview.innerHTML = presetAccountIconHTML(preset, 52);
                 removeBtn.style.display = "";
             } else {
                 preview.innerHTML = "None";
                 removeBtn.style.display = "none";
             }
+            document.querySelectorAll("#accIconPresetGrid .acc-icon-swatch").forEach(s => {
+                s.classList.toggle("selected", !dataUrl && preset && s.dataset.presetId === preset.id);
+            });
+        }
+
+        function buildAccIconPresetGrid(selectedId) {
+            const grid = document.getElementById("accIconPresetGrid");
+            if (!grid) return;
+            grid.innerHTML = PRESET_ACCOUNT_ICONS.map(p => `
+                <span class="acc-icon-swatch-wrap">
+                    <span class="acc-icon-swatch${p.id === selectedId ? ' selected' : ''}" data-click="selectAccIconPreset" data-preset-id="${p.id}" title="${escapeHtml(p.label)}">${presetAccountIconHTML(p, 44)}</span>
+                    <span class="acc-icon-swatch-label">${escapeHtml(p.label)}</span>
+                </span>
+            `).join("");
+        }
+
+        function selectAccIconPreset(el) {
+            const presetId = el.dataset.presetId;
+            stagedAccIconPreset = presetId;
+            stagedAccLogoDataUrl = "";
+            renderAccLogoPreview(null, presetId);
         }
 
         async function handleAccLogoFileSelected(el) {
@@ -512,7 +583,8 @@
                 // custom photo upload — 128px is plenty for a small avatar-sized logo.
                 const squared = await cropImageToSquare(raw, 128, 0.9);
                 stagedAccLogoDataUrl = squared;
-                renderAccLogoPreview(squared);
+                stagedAccIconPreset = "";
+                renderAccLogoPreview(squared, null);
             } catch (err) {
                 alert("Couldn't read that image — please try a different file.");
             }
@@ -520,7 +592,8 @@
 
         function removeAccLogo() {
             stagedAccLogoDataUrl = "";
-            renderAccLogoPreview(null);
+            stagedAccIconPreset = "";
+            renderAccLogoPreview(null, null);
         }
 
         // v163 美化方案 point 5: icon + color for an account Group's section-header pill on the
@@ -5671,7 +5744,9 @@
             handleAccGroupChange();
             document.getElementById("newAccBal").value = "0";
             stagedAccLogoDataUrl = null;
-            renderAccLogoPreview(null);
+            stagedAccIconPreset = null;
+            buildAccIconPresetGrid(null);
+            renderAccLogoPreview(null, null);
             populateNewAccountCurrencySelect(baseCurrency);
             document.getElementById("accountFormHeaderTitle").textContent = "Create New Account";
             document.getElementById("accFormSubmitBtn").textContent = "Create Account";
@@ -5756,14 +5831,19 @@
             // whatever was already saved" (looked up fresh rather than trusted from an earlier
             // in-memory list, same caution as the rest of this save path), for a brand-new
             // account it just means "no logo". "" means the Remove button was explicitly tapped.
-            if (stagedAccLogoDataUrl !== null) {
-                record.logo = stagedAccLogoDataUrl;
+            // iconPreset follows the identical null/""/value convention, and is mutually
+            // exclusive with logo (enforced up in the selection handlers above).
+            if (stagedAccLogoDataUrl !== null || stagedAccIconPreset !== null) {
+                record.logo = stagedAccLogoDataUrl || "";
+                record.iconPreset = stagedAccIconPreset || "";
             } else if (!isNewAccount) {
                 const existingAccounts = await readAllDB(STORES.ACCOUNTS);
                 const existing = existingAccounts.find(a => a.id === id);
                 record.logo = (existing && existing.logo) || "";
+                record.iconPreset = (existing && existing.iconPreset) || "";
             } else {
                 record.logo = "";
+                record.iconPreset = "";
             }
 
             if (type === "normal" || type === "creditcard") {
@@ -6266,7 +6346,7 @@
 
                 html += `
                     <div class="config-item account-card" style="cursor:pointer;" data-click="navigateToLedgerPage" data-id="${escapeHtml(a.id)}" data-back="accounts">
-                        ${accountAvatarHTML(a.name, a.logo)}
+                        ${accountAvatarHTML(a.name, a.logo, a.iconPreset)}
                         <div class="account-card-body">
                             <div class="account-card-toprow">
                                 <span class="account-card-name">${escapeHtml(a.name)}</span>
@@ -6341,7 +6421,9 @@
             document.getElementById("editAccountId").value = account.id;
             document.getElementById("newAccName").value = account.name;
             stagedAccLogoDataUrl = null; // unchanged unless the user picks/removes a new one below
-            renderAccLogoPreview(account.logo || null);
+            stagedAccIconPreset = null;
+            buildAccIconPresetGrid(account.logo ? null : (account.iconPreset || null));
+            renderAccLogoPreview(account.logo || null, account.logo ? null : (account.iconPreset || null));
             document.getElementById("newAccRef").value = account.accountRef || "";
             document.getElementById("newAccGroup").value = account.group || DEFAULT_ACCOUNT_GROUP;
             await handleAccGroupChange(
@@ -9274,7 +9356,7 @@
 
                 html += `
                     <div class="config-item account-card" style="cursor:pointer;" data-click="navigateToLedgerPage" data-id="${escapeHtml(a.id)}" data-back="member">
-                        ${accountAvatarHTML(a.name, a.logo)}
+                        ${accountAvatarHTML(a.name, a.logo, a.iconPreset)}
                         <div class="account-card-body">
                             <div class="account-card-toprow">
                                 <span class="account-card-name">${escapeHtml(a.name)}</span>
@@ -19173,6 +19255,7 @@
             removeCompanionCustomPhoto: (el) => removeCompanionCustomPhoto(el),
             triggerAccLogoUpload: () => triggerAccLogoUpload(),
             removeAccLogo: () => removeAccLogo(),
+            selectAccIconPreset: (el) => selectAccIconPreset(el),
             savePlannedPaymentFromTxForm: () => savePlannedPaymentFromTxForm(),
             plannedPaymentRowTap: (el) => plannedPaymentRowTap(el),
             closePlannedPaymentActionsModal: () => closePlannedPaymentActionsModal(),

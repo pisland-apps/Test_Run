@@ -365,6 +365,20 @@
         .companion-swatch.selected { border-color: var(--text-main); box-shadow: none; }
         .companion-swatch svg { width: 30px; height: 30px; display: block; }
         .companion-swatch-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; text-align: center; line-height: 1.2; }
+        /* v379: Account preset-icon picker reuses the .companion-swatch-* shapes/sizing above
+           (same 48px rounded tile, same 2px selected border) — .acc-icon-swatch just swaps the
+           background for whatever inline gradient/color a given preset carries, and the label
+           text is smaller since preset names run longer ("Hongleong Asset Management"). */
+        .acc-icon-swatch-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 2px; max-height: 260px; overflow-y: auto; padding: 2px; }
+        .acc-icon-swatch-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 60px; }
+        .acc-icon-swatch {
+            width: 44px; height: 44px; border-radius: 13px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid transparent; box-shadow: 0 0 0 1.5px var(--border-color) inset;
+            color: #fff; font-weight: 800; overflow: hidden;
+        }
+        .acc-icon-swatch.selected { border-color: var(--text-main); box-shadow: none; }
+        .acc-icon-swatch-label { font-size: 0.6rem; color: var(--text-muted); font-weight: 600; text-align: center; line-height: 1.15; }
         /* v342: section heading between groups (e.g. "Chinese Zodiac") inside #companionSwatchGrid
            — that element is now a plain block wrapper; only each group's own nested
            .companion-swatch-grid row is flex, so labels stack above their row correctly. */
@@ -4564,6 +4578,8 @@
                         <button type="button" class="submit-btn" style="margin-top:0; flex:0; background:var(--chip-bg); color:var(--text-main); font-size:0.75rem; padding:8px 12px;" data-click="triggerAccLogoUpload">Upload</button>
                         <button type="button" id="newAccLogoRemoveBtn" class="submit-btn" style="margin-top:0; flex:0; background:var(--chip-bg); color:var(--text-main); font-size:0.75rem; padding:8px 12px; display:none;" data-click="removeAccLogo">Remove</button>
                     </div>
+                    <p style="font-size:0.7rem; color:var(--text-muted); margin:6px 0 0;">Or pick a preset icon:</p>
+                    <div id="accIconPresetGrid" class="acc-icon-swatch-grid"></div>
                 </div>
 
                 <!-- Account No. / Ref (v130): purely informational, optional — shown in small
