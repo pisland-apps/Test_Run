@@ -164,7 +164,42 @@
                visible edge instead, since it's the element that has to read clearly even when
                stacked on top of another already-open modal. */
             --modal-sheet-border: #94a3b8;
+            /* v381 "Liquid Glass": pointer/touch position (viewport %), updated by ledger.js'
+               updateGlassHighlight() and read by the specular ::before overlays on .nav-header /
+               .sidebar-drawer / .modal-sheet below. Defaults land the highlight upper-left-ish so
+               surfaces look intentionally lit even before any pointer/touch input arrives. */
+            --glass-mx: 30%;
+            --glass-my: 10%;
         }
+
+        /* v381 "Liquid Glass" specular overlay — a CSS-only approximation of Apple's Liquid Glass
+           material (real specular/refraction needs a render pipeline CSS doesn't have). A radial
+           highlight sits on top of each frosted-glass surface and tracks --glass-mx/--glass-my.
+           mix-blend-mode:overlay lets it brighten dark theme surfaces and add sheen to light ones
+           without ever fully washing out the content underneath (including this app's several
+           custom color themes, e.g. data-bg-theme="crayon" below, which restyle these same
+           selectors' backgrounds/borders — this overlay layers on top of all of them unchanged).
+           The pseudo-element takes `border-radius: inherit` and is confined to `inset: 0`, so it
+           self-clips to the parent's rounded corners without needing `overflow: hidden` on the
+           parent (which would break .modal-sheet's own internal scrolling). `pointer-events: none`
+           keeps every button/link beneath it fully clickable. */
+        .nav-header, .sidebar-drawer, .modal-sheet { position: relative; }
+        .nav-header::before, .sidebar-drawer::before, .modal-sheet::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: radial-gradient(140% 140% at var(--glass-mx) var(--glass-my), rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 55%);
+            mix-blend-mode: overlay;
+            pointer-events: none;
+            z-index: 0;
+        }
+        /* Thin bright top rim + soft dark bottom rim on each glass surface fakes the edge
+           refraction of real glass far cheaper than an actual displacement/lensing filter would.
+           Each surface's own box-shadow rule (further down this file, where that surface is
+           originally defined) has the rim values appended directly rather than being overridden
+           here, since a second same-specificity rule earlier in the cascade would just lose to
+           the original later in source order. */
 
         /* v221: self-hosted "Kalam" (OFL-licensed, files under ./fonts/) — used ONLY by the
            Description Summary modal below (#noteSummaryModal), giving it the handwritten-journal
@@ -892,6 +927,8 @@
             background: var(--glass-bg);
             backdrop-filter: blur(10px) saturate(160%);
             -webkit-backdrop-filter: blur(10px) saturate(160%);
+            /* v381 "Liquid Glass" edge rim — see the shared ::before comment near :root above. */
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), inset 0 -1px 0 rgba(15, 23, 42, 0.05);
             border-radius: 14px;
             padding: 10px 8px;
             margin-left: -8px;
@@ -990,7 +1027,7 @@
             transition: transform 0.25s ease;
             display: flex;
             flex-direction: column;
-            box-shadow: 2px 0 24px rgba(15, 23, 42, 0.18);
+            box-shadow: 2px 0 24px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.5), inset -1px 0 0 rgba(15, 23, 42, 0.04); /* v381: rim highlight added, see ::before comment near :root */
             overflow-y: auto;
         }
         .sidebar-drawer.open { transform: translateX(0); }
@@ -1977,7 +2014,7 @@
                layer) that still shows an edge even in engines that render border color oddly atop
                backdrop-filter. */
             border: 1.5px solid var(--modal-sheet-border);
-            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28), inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28), inset 0 0 0 1px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.55); /* v381: rim highlight added, see ::before comment near :root */
             width: 100%;
             max-width: 450px;
             border-radius: 18px;

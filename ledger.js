@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v380";
+        const APP_VERSION = "v381";
         const APP_VERSION_DATE = "2026-09-14";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -19583,6 +19583,36 @@
             if (active && active.tagName === "INPUT" && active.type === "number") {
                 active.blur();
             }
+        }, { passive: true });
+
+        // v381 "Liquid Glass": a specular-highlight overlay on the frosted-glass surfaces
+        // (.nav-header, .sidebar-drawer, .modal-sheet — see their ::before rules in index.html)
+        // that tracks the pointer/touch position via two CSS custom properties, --glass-mx/
+        // --glass-my, read by a radial-gradient in those ::before layers. This is a lightweight
+        // approximation of Apple's Liquid Glass material (real-time specular/refraction) using
+        // only CSS — no actual light simulation, just a highlight that visually follows touch/
+        // pointer input across whichever glass surface it's over, which is the cheapest way to
+        // get a "this reacts to me" feel out of a pure-CSS effect. Coordinates are set as
+        // viewport percentages so one pair of variables works for every glass surface regardless
+        // of its own position/size. rAF-throttled since pointermove/touchmove fire far more often
+        // than a screen repaint needs.
+        let glassHighlightRAF = null;
+        function updateGlassHighlight(clientX, clientY) {
+            if (glassHighlightRAF) return;
+            glassHighlightRAF = requestAnimationFrame(() => {
+                glassHighlightRAF = null;
+                const xPct = ((clientX / window.innerWidth) * 100).toFixed(1);
+                const yPct = ((clientY / window.innerHeight) * 100).toFixed(1);
+                document.documentElement.style.setProperty("--glass-mx", xPct + "%");
+                document.documentElement.style.setProperty("--glass-my", yPct + "%");
+            });
+        }
+        document.addEventListener("pointermove", (e) => updateGlassHighlight(e.clientX, e.clientY), { passive: true });
+        document.addEventListener("touchstart", (e) => {
+            if (e.touches && e.touches[0]) updateGlassHighlight(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+        document.addEventListener("touchmove", (e) => {
+            if (e.touches && e.touches[0]) updateGlassHighlight(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: true });
 
         window.addEventListener("load", bootstrap);
