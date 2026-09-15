@@ -10,8 +10,8 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v381";
-        const APP_VERSION_DATE = "2026-09-14";
+        const APP_VERSION = "v380";
+        const APP_VERSION_DATE = "2026-09-15";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
         // inconsistently across platforms/fonts). Used by the static Amount field button
@@ -275,6 +275,49 @@
                 colorScheme: "light",
                 themeColor: "#E63946",
             },
+            {
+                // Liquid Glass — full override like crayon above, not a bg-only preset. Real
+                // glassmorphism needs something behind the frosted surfaces worth refracting, so
+                // this pairs with a static (non-animated, see html[data-bg-theme="glass"] rules in
+                // index.html) soft pastel gradient painted behind the page — cheap to render once,
+                // unlike an animated version, and gives the existing --glass-bg/-strong/-modal
+                // translucency (already used by .nav-header/.sidebar-drawer/.modal-sheet) actual
+                // color to pick up instead of just blurring flat white.
+                //
+                // Deliberately does NOT push backdrop-filter blur onto scrolling list rows
+                // (.ledger-item/.statement-row) — only container-level cards that appear a handful
+                // of times per screen (.report-card/.report-card-mini/.statement-card/.stat-box,
+                // scoped in index.html) get the extra blur, since blurring every row of a long
+                // transaction list on scroll is a real jank risk on older phones. .config-item
+                // (Settings page, many rows) is left on plain --card-bg for the same reason.
+                //
+                // glassBgModal stays high-opacity (0.90) rather than as translucent as glassBg —
+                // keeps the v204 double-modal-stacking fix intact (a second modal opened on top of
+                // an already-open one needs real contrast against the first, not another layer of
+                // see-through).
+                id: "glass", name: "Liquid Glass",
+                bg: "#eef2f8", cardBg: "#ffffff", textMain: "#1c2333", textMuted: "#5b6472",
+                borderColor: "rgba(255,255,255,0.55)",
+                cardTopBorderColor: "rgba(255,255,255,0.85)",
+                neuLight: "rgba(255,255,255,0.90)", neuDark: "rgba(148,163,184,0.35)",
+                neuPrimaryLight: "rgba(255,255,255,0.40)", neuPrimaryDark: "rgba(79,70,229,0.35)",
+                glassBg: "rgba(255,255,255,0.42)", glassBgStrong: "rgba(255,255,255,0.60)",
+                glassBgModal: "rgba(255,255,255,0.90)", glassBorder: "rgba(255,255,255,0.65)",
+                modalSheetBorder: "#c7d2e0",
+                hoverBg: "rgba(255,255,255,0.35)", pressBg: "rgba(255,255,255,0.55)",
+                activeBg: "rgba(99,102,241,0.16)", activeBorder: "rgba(99,102,241,0.35)", chipBg: "rgba(255,255,255,0.50)",
+                incomeChipBg: "rgba(16,185,129,0.14)", incomeChipBorder: "rgba(16,185,129,0.35)",
+                expenseChipBg: "rgba(239,68,68,0.14)", expenseChipBorder: "rgba(239,68,68,0.35)",
+                primaryChipBg: "rgba(99,102,241,0.14)",
+                cardShadow: "0 8px 32px rgba(31,38,135,0.12)",
+                hardwareTrackBg: "rgba(255,255,255,0.50)", hardwareTrackBorder: "rgba(255,255,255,0.70)",
+                hardwareFillStart: "#a5b4fc", hardwareFillEnd: "#6366f1",
+                dropdownOptionBg: "#ffffff",
+                primary: "#6366f1", incomeColor: "#10b981", expenseColor: "#ef4444",
+                transferColor: "#3b82f6", salaryColor: "#d97706",
+                colorScheme: "light",
+                themeColor: "#eef2f8",
+            },
         ];
         const BG_THEME_STORAGE_KEY = "ledgerBgTheme";
         // v202: separate slot that only ever holds the most recent *light* preset's full
@@ -455,45 +498,6 @@
             return `<span style="display:inline-flex; align-items:center; justify-content:center; width:${size}px; height:${size}px; min-width:${size}px; border-radius:50%; background:${bg}; color:${fg}; font-weight:800; font-size:${fontSize}px; box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.65), 0 1px 2px rgba(0,0,0,0.12); flex-shrink:0;">${escapeHtml(glyph)}</span>`;
         }
 
-        // v379: preset icons for common banks/e-wallets/cards — deliberately plain
-        // color+abbreviation badges (same idiom as CURRENCY_ICON_GLYPHS above), NOT reproductions
-        // of any institution's actual logo/mark, so there's no trademark/copyright concern with
-        // shipping them baked into the app. Purely a quick visual shorthand the user can pick
-        // instead of uploading their own image.
-        const PRESET_ACCOUNT_ICONS = [
-            { id: "hlb", label: "Hong Leong Bank", glyph: "HLB", bg: "#C8102E" },
-            { id: "cimb", label: "CIMB Bank", glyph: "CIMB", bg: "#7A1E2B" },
-            { id: "hsbc", label: "HSBC", glyph: "HSBC", bg: "#DB0011" },
-            { id: "pbb", label: "Public Bank", glyph: "PBB", bg: "#7A0C2E" },
-            { id: "rhb", label: "RHB Bank", glyph: "RHB", bg: "#0033A0" },
-            { id: "alliance", label: "Alliance Bank", glyph: "ABMB", bg: "#005EB8" },
-            { id: "dbs", label: "DBS Bank", glyph: "DBS", bg: "#E2231A" },
-            { id: "posb", label: "POSB", glyph: "POSB", bg: "#EE3124" },
-            { id: "wise", label: "WISE", glyph: "Wise", bg: "#00B9AB" },
-            { id: "setel", label: "SETEL", glyph: "Setel", bg: "#00A19A" },
-            { id: "tng", label: "TNG", glyph: "TnG", bg: "#003DA5" },
-            { id: "paylah", label: "PayLah", glyph: "Lah!", bg: "#EE3124" },
-            { id: "kwsp", label: "KWSP", glyph: "KWSP", bg: "#00693E" },
-            { id: "cpf", label: "CPF", glyph: "CPF", bg: "#F7941D" },
-            { id: "asm", label: "ASM", glyph: "ASM", bg: "#B8860B" },
-            { id: "asm2", label: "ASM2", glyph: "ASM2", bg: "#A0740A" },
-            { id: "asm3", label: "ASM3", glyph: "ASM3", bg: "#8A6208" },
-            { id: "asnb", label: "ASNB", glyph: "ASNB", bg: "#6B4C08" },
-            { id: "hlam", label: "Hongleong Asset Mgmt", glyph: "HLAM", bg: "#D14D5A" },
-            { id: "pmf", label: "Public Mutual Fund", glyph: "PMF", bg: "#9C2B45" },
-            { id: "visa", label: "VISA card", glyph: "VISA", bg: "#1A1F71" },
-            { id: "mastercard", label: "MASTER card", glyph: "MC", bg: "linear-gradient(135deg, #EB001B, #F79E1B)" },
-            { id: "mykasih", label: "My Kasih", glyph: "MyK", bg: "#E07B1A" },
-            { id: "cash", label: "Cash", glyph: "💵", bg: "#16A34A" },
-            { id: "fxcash", label: "Foreign Cash", glyph: "🌐", bg: "#0E7490" },
-        ];
-        function presetAccountIconHTML(preset, size) {
-            size = size || 40;
-            const fontSize = /\p{Emoji}/u.test(preset.glyph) ? size * 0.5 : (preset.glyph.length > 3 ? size * 0.28 : size * 0.34);
-            const background = preset.bg.indexOf("gradient") !== -1 ? preset.bg : preset.bg;
-            return `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:${background}; color:#fff; font-weight:800; font-size:${fontSize}px; letter-spacing:-0.02em;">${escapeHtml(preset.glyph)}</div>`;
-        }
-
         // v163 美化方案 point 2: deterministic gradient-avatar initial for an Accounts-page row —
         // same hash→palette idiom as currencyBadgeColor() above, so a given account name always
         // lands on the same two colors across reloads without needing a stored color field on
@@ -508,13 +512,9 @@
         // cropImageToSquare() from the Receipt Attachments/Companion features) overrides the
         // gradient-letter avatar wherever an account is listed. Falls back to the letter avatar
         // exactly as before when no logo is set, so existing accounts are unaffected.
-        function accountAvatarHTML(name, logo, iconPreset) {
+        function accountAvatarHTML(name, logo) {
             if (logo) {
                 return `<div class="account-avatar" style="padding:0; overflow:hidden; background:var(--chip-bg);"><img src="${logo}" alt="" style="width:100%; height:100%; object-fit:cover; display:block;"></div>`;
-            }
-            const preset = iconPreset && PRESET_ACCOUNT_ICONS.find(p => p.id === iconPreset);
-            if (preset) {
-                return `<div class="account-avatar" style="padding:0; overflow:hidden;">${presetAccountIconHTML(preset, 40)}</div>`;
             }
             const str = String(name || "").trim();
             let hash = 0;
@@ -527,50 +527,22 @@
         // --- Account Logo upload (form-local staging, same shape as the Companion custom-photo
         // upload above) — held in a module-level var rather than written straight to IndexedDB,
         // since the account record itself isn't saved until the form's Save button is tapped.
-        // Custom upload and preset-icon selection are mutually exclusive: picking one clears
-        // whichever the user had staged for the other, so the account never ends up with both.
-        let stagedAccLogoDataUrl = null; // null = unchanged; "" = explicitly removed; else a data URL
-        let stagedAccIconPreset = null;  // null = unchanged; "" = explicitly removed; else a preset id
+        let stagedAccLogoDataUrl = null; // null = unchanged from whatever editAccount() loaded; "" = explicitly removed
 
         function triggerAccLogoUpload() {
             document.getElementById("newAccLogoFile").click();
         }
 
-        function renderAccLogoPreview(dataUrl, iconPreset) {
+        function renderAccLogoPreview(dataUrl) {
             const preview = document.getElementById("newAccLogoPreview");
             const removeBtn = document.getElementById("newAccLogoRemoveBtn");
-            const preset = iconPreset && PRESET_ACCOUNT_ICONS.find(p => p.id === iconPreset);
             if (dataUrl) {
                 preview.innerHTML = `<img src="${dataUrl}" alt="" style="width:100%; height:100%; object-fit:cover; display:block;">`;
-                removeBtn.style.display = "";
-            } else if (preset) {
-                preview.innerHTML = presetAccountIconHTML(preset, 52);
                 removeBtn.style.display = "";
             } else {
                 preview.innerHTML = "None";
                 removeBtn.style.display = "none";
             }
-            document.querySelectorAll("#accIconPresetGrid .acc-icon-swatch").forEach(s => {
-                s.classList.toggle("selected", !dataUrl && preset && s.dataset.presetId === preset.id);
-            });
-        }
-
-        function buildAccIconPresetGrid(selectedId) {
-            const grid = document.getElementById("accIconPresetGrid");
-            if (!grid) return;
-            grid.innerHTML = PRESET_ACCOUNT_ICONS.map(p => `
-                <span class="acc-icon-swatch-wrap">
-                    <span class="acc-icon-swatch${p.id === selectedId ? ' selected' : ''}" data-click="selectAccIconPreset" data-preset-id="${p.id}" title="${escapeHtml(p.label)}">${presetAccountIconHTML(p, 44)}</span>
-                    <span class="acc-icon-swatch-label">${escapeHtml(p.label)}</span>
-                </span>
-            `).join("");
-        }
-
-        function selectAccIconPreset(el) {
-            const presetId = el.dataset.presetId;
-            stagedAccIconPreset = presetId;
-            stagedAccLogoDataUrl = "";
-            renderAccLogoPreview(null, presetId);
         }
 
         async function handleAccLogoFileSelected(el) {
@@ -583,8 +555,7 @@
                 // custom photo upload — 128px is plenty for a small avatar-sized logo.
                 const squared = await cropImageToSquare(raw, 128, 0.9);
                 stagedAccLogoDataUrl = squared;
-                stagedAccIconPreset = "";
-                renderAccLogoPreview(squared, null);
+                renderAccLogoPreview(squared);
             } catch (err) {
                 alert("Couldn't read that image — please try a different file.");
             }
@@ -592,8 +563,7 @@
 
         function removeAccLogo() {
             stagedAccLogoDataUrl = "";
-            stagedAccIconPreset = "";
-            renderAccLogoPreview(null, null);
+            renderAccLogoPreview(null);
         }
 
         // v163 美化方案 point 5: icon + color for an account Group's section-header pill on the
@@ -5744,9 +5714,7 @@
             handleAccGroupChange();
             document.getElementById("newAccBal").value = "0";
             stagedAccLogoDataUrl = null;
-            stagedAccIconPreset = null;
-            buildAccIconPresetGrid(null);
-            renderAccLogoPreview(null, null);
+            renderAccLogoPreview(null);
             populateNewAccountCurrencySelect(baseCurrency);
             document.getElementById("accountFormHeaderTitle").textContent = "Create New Account";
             document.getElementById("accFormSubmitBtn").textContent = "Create Account";
@@ -5831,19 +5799,14 @@
             // whatever was already saved" (looked up fresh rather than trusted from an earlier
             // in-memory list, same caution as the rest of this save path), for a brand-new
             // account it just means "no logo". "" means the Remove button was explicitly tapped.
-            // iconPreset follows the identical null/""/value convention, and is mutually
-            // exclusive with logo (enforced up in the selection handlers above).
-            if (stagedAccLogoDataUrl !== null || stagedAccIconPreset !== null) {
-                record.logo = stagedAccLogoDataUrl || "";
-                record.iconPreset = stagedAccIconPreset || "";
+            if (stagedAccLogoDataUrl !== null) {
+                record.logo = stagedAccLogoDataUrl;
             } else if (!isNewAccount) {
                 const existingAccounts = await readAllDB(STORES.ACCOUNTS);
                 const existing = existingAccounts.find(a => a.id === id);
                 record.logo = (existing && existing.logo) || "";
-                record.iconPreset = (existing && existing.iconPreset) || "";
             } else {
                 record.logo = "";
-                record.iconPreset = "";
             }
 
             if (type === "normal" || type === "creditcard") {
@@ -6346,7 +6309,7 @@
 
                 html += `
                     <div class="config-item account-card" style="cursor:pointer;" data-click="navigateToLedgerPage" data-id="${escapeHtml(a.id)}" data-back="accounts">
-                        ${accountAvatarHTML(a.name, a.logo, a.iconPreset)}
+                        ${accountAvatarHTML(a.name, a.logo)}
                         <div class="account-card-body">
                             <div class="account-card-toprow">
                                 <span class="account-card-name">${escapeHtml(a.name)}</span>
@@ -6421,9 +6384,7 @@
             document.getElementById("editAccountId").value = account.id;
             document.getElementById("newAccName").value = account.name;
             stagedAccLogoDataUrl = null; // unchanged unless the user picks/removes a new one below
-            stagedAccIconPreset = null;
-            buildAccIconPresetGrid(account.logo ? null : (account.iconPreset || null));
-            renderAccLogoPreview(account.logo || null, account.logo ? null : (account.iconPreset || null));
+            renderAccLogoPreview(account.logo || null);
             document.getElementById("newAccRef").value = account.accountRef || "";
             document.getElementById("newAccGroup").value = account.group || DEFAULT_ACCOUNT_GROUP;
             await handleAccGroupChange(
@@ -9356,7 +9317,7 @@
 
                 html += `
                     <div class="config-item account-card" style="cursor:pointer;" data-click="navigateToLedgerPage" data-id="${escapeHtml(a.id)}" data-back="member">
-                        ${accountAvatarHTML(a.name, a.logo, a.iconPreset)}
+                        ${accountAvatarHTML(a.name, a.logo)}
                         <div class="account-card-body">
                             <div class="account-card-toprow">
                                 <span class="account-card-name">${escapeHtml(a.name)}</span>
@@ -19255,7 +19216,6 @@
             removeCompanionCustomPhoto: (el) => removeCompanionCustomPhoto(el),
             triggerAccLogoUpload: () => triggerAccLogoUpload(),
             removeAccLogo: () => removeAccLogo(),
-            selectAccIconPreset: (el) => selectAccIconPreset(el),
             savePlannedPaymentFromTxForm: () => savePlannedPaymentFromTxForm(),
             plannedPaymentRowTap: (el) => plannedPaymentRowTap(el),
             closePlannedPaymentActionsModal: () => closePlannedPaymentActionsModal(),
@@ -19583,36 +19543,6 @@
             if (active && active.tagName === "INPUT" && active.type === "number") {
                 active.blur();
             }
-        }, { passive: true });
-
-        // v381 "Liquid Glass": a specular-highlight overlay on the frosted-glass surfaces
-        // (.nav-header, .sidebar-drawer, .modal-sheet — see their ::before rules in index.html)
-        // that tracks the pointer/touch position via two CSS custom properties, --glass-mx/
-        // --glass-my, read by a radial-gradient in those ::before layers. This is a lightweight
-        // approximation of Apple's Liquid Glass material (real-time specular/refraction) using
-        // only CSS — no actual light simulation, just a highlight that visually follows touch/
-        // pointer input across whichever glass surface it's over, which is the cheapest way to
-        // get a "this reacts to me" feel out of a pure-CSS effect. Coordinates are set as
-        // viewport percentages so one pair of variables works for every glass surface regardless
-        // of its own position/size. rAF-throttled since pointermove/touchmove fire far more often
-        // than a screen repaint needs.
-        let glassHighlightRAF = null;
-        function updateGlassHighlight(clientX, clientY) {
-            if (glassHighlightRAF) return;
-            glassHighlightRAF = requestAnimationFrame(() => {
-                glassHighlightRAF = null;
-                const xPct = ((clientX / window.innerWidth) * 100).toFixed(1);
-                const yPct = ((clientY / window.innerHeight) * 100).toFixed(1);
-                document.documentElement.style.setProperty("--glass-mx", xPct + "%");
-                document.documentElement.style.setProperty("--glass-my", yPct + "%");
-            });
-        }
-        document.addEventListener("pointermove", (e) => updateGlassHighlight(e.clientX, e.clientY), { passive: true });
-        document.addEventListener("touchstart", (e) => {
-            if (e.touches && e.touches[0]) updateGlassHighlight(e.touches[0].clientX, e.touches[0].clientY);
-        }, { passive: true });
-        document.addEventListener("touchmove", (e) => {
-            if (e.touches && e.touches[0]) updateGlassHighlight(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: true });
 
         window.addEventListener("load", bootstrap);
