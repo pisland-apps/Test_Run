@@ -365,7 +365,8 @@
         .companion-swatch.selected { border-color: var(--text-main); box-shadow: none; }
         .companion-swatch svg { width: 30px; height: 30px; display: block; }
         .companion-swatch-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; text-align: center; line-height: 1.2; }
-        /* v342: section heading between groups (e.g. "Chinese Zodiac") inside #companionSwatchGrid
+        /* v342: section heading between groups inside #companionSwatchGrid (v385: with the built-in
+           Chinese Zodiac set removed, "My Photos" is the only group left using this)
            — that element is now a plain block wrapper; only each group's own nested
            .companion-swatch-grid row is flex, so labels stack above their row correctly. */
         .companion-group-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin: 10px 0 2px; }
@@ -2755,6 +2756,13 @@
             <button class="sidebar-item" data-click="sidebarGo" data-target="total-summary">
                 <span class="sidebar-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg></span> Total Bill Summary
             </button>
+            <!-- v386: Monthly Trend — the Dashboard's month-by-month income/expense chart + table,
+                 now also reachable as its own report page (the same DOM node is moved here; see
+                 placeMonthlyTrendSection()). Sits next to Total Bill Summary since the two are the
+                 same rollup at different granularity — per-month vs per-year. -->
+            <button class="sidebar-item" data-click="sidebarGo" data-target="monthly-trend">
+                <span class="sidebar-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Monthly Trend
+            </button>
             <button class="sidebar-item" data-click="sidebarGo" data-target="spending-breakdown">
                 <span class="sidebar-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span> Spending Breakdown
             </button>
@@ -3011,13 +3019,28 @@
             </div>
         </div>
 
+        <!-- v386: the whole Monthly Trend block (header + chart + table) now lives inside this
+             slot so it can be (a) hidden from the Dashboard via Setting > Dashboard Widgets >
+             Monthly Trend, and (b) physically MOVED into the new Reports > Monthly Trend page
+             (#monthlyTrendReportHost) rather than duplicated there. Moving the one real node
+             keeps a single set of ids/state — the year select, auto-scale button, mascot and
+             collapsible table all work identically in either place, with no second render path
+             to keep in sync. See placeMonthlyTrendSection() / applyMonthlyTrendDashboardVisibility(). -->
+        <div id="monthlyTrendDashboardSlot">
+            <div id="monthlyTrendSection">
         <div class="section-header">
             <span class="section-title" data-click="toggleMonthlyTrendTable" style="display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none;" title="Tap to show/hide the monthly table">
                 Monthly Trend
                 <!-- v372: mirrors whatever's currently picked in Settings > Companion (applyCompanionPet());
                      kept tiny and purely decorative, unlike the 52x52 #netWorthCompanion chip. Populated by
-                     renderMonthlyTrendMascotIcon(), called from renderMonthlyTrendChart(). -->
-                <span id="monthlyTrendMascot" style="display:none; width:18px; height:18px; flex-shrink:0;"></span>
+                     renderMonthlyTrendMascotIcon(), called from renderMonthlyTrendChart().
+                     v382: no longer purely decorative — now its own independent Settings > Monthly Trend
+                     Mascot pick (defaults to mirroring Companion, same as before, until changed there).
+                     Its own data-click (toggleMonthlyTrendMascotSettingsFromDashboard) takes over the
+                     click on just this span — closest("[data-click]") in the delegated listener resolves
+                     to the nearest match walking up from the event target, so this shadows the parent
+                     .section-title's data-click="toggleMonthlyTrendTable" rather than triggering both. -->
+                <span id="monthlyTrendMascot" data-click="toggleMonthlyTrendMascotSettingsFromDashboard" title="Monthly Trend Mascot — tap to change in Settings" style="display:none; width:18px; height:18px; flex-shrink:0; cursor:pointer;"></span>
                 <!-- v373: reuses the same rotating-chevron convention as the sidebar's Financial
                      Accounts toggle (.subrow-toggle-btn .chevron-icon) — see toggleMonthlyTrendTable()
                      / applyMonthlyTrendTableExpandedState() in ledger.js. -->
@@ -3039,6 +3062,8 @@
                  same idea as the Total Bill Summary report's table but per-month for the selected year.
                  Populated by renderMonthlyTrendTable() from within renderMonthlyTrendChart(). -->
             <div id="monthlyTrendTableWrap" style="overflow-x:auto; margin-top:14px; border-top:1px solid var(--border-color); padding-top:12px;"></div>
+        </div>
+            </div>
         </div>
 
         <!-- v281: Tag Reminders — one row per tag with "Show on Dashboard" enabled (see the Tag
@@ -3760,6 +3785,29 @@
         </p>
     </div>
 
+    <!-- ================= PAGE: MONTHLY TREND (v386) =================
+         Deliberately empty in the markup: navigating here moves the live #monthlyTrendSection node
+         out of the Dashboard and into #monthlyTrendReportHost below (and showPage() moves it back
+         on the way out), so this page and the Dashboard always show the exact same chart, year
+         picker, auto-scale state and collapsible table — one node, one set of ids, one render
+         path. See placeMonthlyTrendSection() / navigateToMonthlyTrendPage() in ledger.js. -->
+    <div id="page-monthly-trend" class="page hidden">
+        <div class="nav-header">
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
+            <div style="flex:1;">
+                <h3 style="font-weight:800; font-size:1.2rem;">Monthly Trend</h3>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Income and expense, month by month</p>
+            </div>
+        </div>
+
+        <div id="monthlyTrendReportHost"></div>
+
+        <p style="font-size:0.68rem; color:var(--text-muted); margin-top:10px;">
+            Tap the "Monthly Trend" title to show or hide the table. Use Setting &gt; Dashboard Widgets
+            to control whether this same block also appears on your Dashboard.
+        </p>
+    </div>
+
     <!-- ================= PAGE: SPENDING BREAKDOWN (moved out of Dashboard, v32) ================= -->
     <div id="page-spending-breakdown" class="page hidden">
         <div class="nav-header">
@@ -4263,7 +4311,7 @@
                 <span style="color:var(--text-muted);">›</span>
             </div>
             <div id="companionSettingsPanel" style="display:none; flex-direction:column; gap:10px; background:var(--card-bg); border:1.5px solid var(--border-color); border-radius:12px; padding:12px; margin-bottom:10px;">
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">A small mascot next to your Portfolio Net Worth figure. Each preview shows how it actually looks on the card. Save up to 20 of your own photos below and switch between them any time — tap the "×" on a photo to remove it.</p>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">A small mascot next to your Portfolio Net Worth figure. Save up to 20 of your own photos below and switch between them any time — each preview shows how it actually looks on the card. Tap the "×" on a photo to remove it.</p>
                 <div id="companionSwatchGrid"></div>
                 <!-- v343: hidden file input behind the "My Photos" group's "＋ Add" tile — same
                      accept="image/*" pattern the transaction-attachment inputs use. No `capture`
@@ -4271,11 +4319,61 @@
                      as likely to come from the gallery as the camera. -->
                 <input type="file" id="companionCustomImageInput" accept="image/*" style="display:none;" data-change="handleCompanionCustomImageSelected">
             </div>
+            <!-- v382: independent mascot pick for the Monthly Trend title, decoupled from the
+                 Companion above on request — previously this was a read-only mirror of whatever
+                 Companion had picked (see the old v372 comment on renderMonthlyTrendMascotIcon in
+                 ledger.js), with no way to show something different in the two spots. Defaults to
+                 "Match Companion" (mirrors the setting above, same as before) unless changed here. -->
+            <div class="config-item" style="cursor:pointer;" data-click="toggleMonthlyTrendMascotSettings">
+                <span>📈 <strong>Monthly Trend Mascot</strong></span>
+                <span style="color:var(--text-muted);">›</span>
+            </div>
+            <div id="monthlyTrendMascotSettingsPanel" style="display:none; flex-direction:column; gap:10px; background:var(--card-bg); border:1.5px solid var(--border-color); border-radius:12px; padding:12px; margin-bottom:10px;">
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">The small mascot next to the "Monthly Trend" title on your Dashboard. Leave this on "Match Companion" to always mirror the pick above, or choose something different just for this spot.</p>
+                <div id="monthlyTrendMascotSwatchGrid"></div>
+            </div>
             <div class="config-item" style="cursor:pointer;" data-click="toggleDashboardWidgetsSettings">
                 <span>📊 <strong>Dashboard Widgets</strong></span>
                 <span style="color:var(--text-muted);">›</span>
             </div>
             <div id="dashboardWidgetsSettingsPanel" style="display:none; flex-direction:column; gap:14px; background:var(--card-bg); border:1.5px solid var(--border-color); border-radius:12px; padding:12px; margin-bottom:10px;">
+                <!-- v387: section order in this panel, per request — the two simple on/off
+                     widget switches (Monthly Trend, Budget) sit at the top where they're reachable
+                     without scrolling, then the dashboard ordering control, then the two
+                     multi-setting widget blocks (Recent Transactions before Accounts, matching the
+                     order this user actually has them in on the Dashboard). Purely presentational:
+                     no ids, handlers or defaults changed. -->
+                <!-- v386: Monthly Trend is now also its own Reports page, so it no longer has to
+                     be on the Dashboard — off here just hides #monthlyTrendDashboardSlot; the block
+                     itself (and all its state) stays live and fully usable at Reports > Monthly Trend. -->
+                <div>
+                    <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">MONTHLY TREND</p>
+                    <div class="toggle-switch-row" style="margin-top:0;">
+                        <span class="toggle-switch-label">Show on Dashboard</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="dashboardMonthlyTrendToggle" data-change="handleDashboardMonthlyTrendToggleChange">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <p style="font-size:0.75rem; color:var(--text-muted); margin:8px 0 0;">When off, it stays available under Reports &gt; Monthly Trend in the sidebar.</p>
+                </div>
+                <!-- v334: lets the user pick which of THIS MONTH's Category Budgets also get
+                     their own mini progress row on the Dashboard's Remaining Budget widget, which
+                     otherwise only ever shows the overall Monthly/Yearly total. Pool is built live
+                     from the current month's budget record — see renderDashboardBudgetCategoryToggles(). -->
+                <div>
+                    <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">BUDGET WIDGET</p>
+                    <div class="toggle-switch-row" style="margin-top:0;">
+                        <span class="toggle-switch-label">Show on Dashboard</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="dashboardBudgetWidgetToggle" data-change="handleDashboardBudgetWidgetToggleChange">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <p style="font-size:0.75rem; color:var(--text-muted); margin:10px 0 8px;">Choose which category budgets also show on the Dashboard.</p>
+                    <div id="dashboardBudgetCategoryToggles" style="display:flex; flex-direction:column; gap:2px;"></div>
+                    <p id="dashboardBudgetCategoryTogglesEmpty" style="font-size:0.8rem; color:var(--text-muted); display:none;">No category budgets set for this month yet — add some on the Budget page first.</p>
+                </div>
                 <div class="form-row" style="margin-bottom:0;">
                     <label>Order on Dashboard</label>
                     <button type="button" id="dashboardWidgetOrderSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="dashboardWidgetOrderSelect" data-title="Order on Dashboard">
@@ -4285,17 +4383,6 @@
                         <option value="accounts-first">Accounts, then Recent Transactions</option>
                         <option value="recenttx-first">Recent Transactions, then Accounts</option>
                     </select>
-                </div>
-                <div>
-                    <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">ACCOUNTS WIDGET</p>
-                    <div class="form-row" style="margin-bottom:0;">
-                        <label>Number of items shown</label>
-                        <button type="button" id="pinnedAccountCountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="pinnedAccountCountSelect" data-title="Number of Items Shown">
-                            <span id="pinnedAccountCountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                        </button>
-                        <select id="pinnedAccountCountSelect" style="display:none;" data-change="handlePinnedAccountCountChange"></select>
-                    </div>
-                    <div id="pinnedAccountSlotSelects" style="display:flex; flex-direction:column; gap:8px; margin-top:8px;"></div>
                 </div>
                 <div>
                     <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">RECENT TRANSACTIONS WIDGET</p>
@@ -4328,22 +4415,16 @@
                         <select id="recentTxCountSelect" style="display:none;" data-change="handleRecentTxSettingChange"></select>
                     </div>
                 </div>
-                <!-- v334: lets the user pick which of THIS MONTH's Category Budgets also get
-                     their own mini progress row on the Dashboard's Remaining Budget widget, which
-                     otherwise only ever shows the overall Monthly/Yearly total. Pool is built live
-                     from the current month's budget record — see renderDashboardBudgetCategoryToggles(). -->
                 <div>
-                    <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">BUDGET WIDGET</p>
-                    <div class="toggle-switch-row" style="margin-top:0;">
-                        <span class="toggle-switch-label">Show on Dashboard</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="dashboardBudgetWidgetToggle" data-change="handleDashboardBudgetWidgetToggleChange">
-                            <span class="toggle-slider"></span>
-                        </label>
+                    <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">ACCOUNTS WIDGET</p>
+                    <div class="form-row" style="margin-bottom:0;">
+                        <label>Number of items shown</label>
+                        <button type="button" id="pinnedAccountCountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="pinnedAccountCountSelect" data-title="Number of Items Shown">
+                            <span id="pinnedAccountCountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                        </button>
+                        <select id="pinnedAccountCountSelect" style="display:none;" data-change="handlePinnedAccountCountChange"></select>
                     </div>
-                    <p style="font-size:0.75rem; color:var(--text-muted); margin:10px 0 8px;">Choose which category budgets also show on the Dashboard.</p>
-                    <div id="dashboardBudgetCategoryToggles" style="display:flex; flex-direction:column; gap:2px;"></div>
-                    <p id="dashboardBudgetCategoryTogglesEmpty" style="font-size:0.8rem; color:var(--text-muted); display:none;">No category budgets set for this month yet — add some on the Budget page first.</p>
+                    <div id="pinnedAccountSlotSelects" style="display:flex; flex-direction:column; gap:8px; margin-top:8px;"></div>
                 </div>
             </div>
             <div class="config-item" style="cursor:pointer;" data-click="openCurrencyConfig">

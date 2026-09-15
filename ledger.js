@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v381";
+        const APP_VERSION = "v388";
         const APP_VERSION_DATE = "2026-09-15";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -1994,6 +1994,7 @@
             // than introducing a one-off exception.
             const attachmentReviewPage = document.getElementById("page-attachment-review");
             const totalSummaryPage = document.getElementById("page-total-summary");
+            const monthlyTrendPage = document.getElementById("page-monthly-trend");
             const spendingBreakdownPage = document.getElementById("page-spending-breakdown");
             const incomeBreakdownPage = document.getElementById("page-income-breakdown");
             const portfolioReportPage = document.getElementById("page-portfolio-report");
@@ -2040,6 +2041,7 @@
                 !databasePage.classList.contains("hidden") ||
                 !attachmentReviewPage.classList.contains("hidden") ||
                 !totalSummaryPage.classList.contains("hidden") ||
+                !monthlyTrendPage.classList.contains("hidden") ||
                 !spendingBreakdownPage.classList.contains("hidden") ||
                 !incomeBreakdownPage.classList.contains("hidden") ||
                 !portfolioReportPage.classList.contains("hidden") ||
@@ -2183,6 +2185,15 @@
         // first — configured from Setting > Dashboard Widgets, applied via
         // applyDashboardWidgetOrder(). Persisted via SETTINGS like the filters above.
         let dashboardWidgetOrder = "accounts-first"; // "accounts-first" | "recenttx-first"
+        // v386: whether the Monthly Trend block is shown on the Dashboard at all. It's now also
+        // its own Reports page, so hiding it here isn't "losing" it — the very same DOM node is
+        // moved to that page on navigation (see placeMonthlyTrendSection()), which is why this
+        // flag hides the SLOT (#monthlyTrendDashboardSlot) rather than the section itself: when
+        // the section has been moved out to the report page, the empty slot's display is
+        // irrelevant, so the report page is never accidentally blanked by this setting.
+        // Persisted via SETTINGS like the widget settings above; defaults to true (unchanged
+        // behaviour for existing installs).
+        let showMonthlyTrendOnDashboard = true;
         // v334: which of the current month's Category Budgets (if any) also get their own mini
         // progress row on the Dashboard's "Remaining Budget" widget, opted in one-by-one via the
         // Dashboard Widgets settings panel — see renderDashboardBudgetCategoryToggles(). Empty by
@@ -2447,6 +2458,8 @@
                 const orderSel = document.getElementById("dashboardWidgetOrderSelect");
                 if (orderSel) orderSel.value = dashboardWidgetOrder;
                 syncAccountPickerButtonText("dashboardWidgetOrderSelect");
+                const trendToggle = document.getElementById("dashboardMonthlyTrendToggle");
+                if (trendToggle) trendToggle.checked = showMonthlyTrendOnDashboard;
                 const budgetToggle = document.getElementById("dashboardBudgetWidgetToggle");
                 if (budgetToggle) budgetToggle.checked = dashboardBudgetWidgetEnabled;
                 renderDashboardBudgetCategoryToggles();
@@ -2546,6 +2559,34 @@
             } else {
                 accountsWidget.parentNode.insertBefore(accountsWidget, recentTxWidget);
             }
+        }
+
+        // v386: the Monthly Trend block is a single live node that lives on the Dashboard by
+        // default and is moved into the Reports > Monthly Trend page while that page is open.
+        // appendChild() moves rather than copies, so there's only ever one #monthlyTrendSection
+        // in the document — no duplicate ids, and no second chart/table render path to keep in
+        // sync with the first. Idempotent: re-appending a node that's already the host's child
+        // is a no-op, so this is safe to call on every showPage().
+        function placeMonthlyTrendSection(pageId) {
+            const section = document.getElementById("monthlyTrendSection");
+            if (!section) return;
+            const host = pageId === "page-monthly-trend"
+                ? document.getElementById("monthlyTrendReportHost")
+                : document.getElementById("monthlyTrendDashboardSlot");
+            if (host && section.parentNode !== host) host.appendChild(section);
+        }
+
+        // v386: hides/shows the Dashboard's slot only — see showMonthlyTrendOnDashboard above for
+        // why this deliberately isn't applied to the section itself.
+        function applyMonthlyTrendDashboardVisibility() {
+            const slot = document.getElementById("monthlyTrendDashboardSlot");
+            if (slot) slot.style.display = showMonthlyTrendOnDashboard ? "" : "none";
+        }
+
+        async function handleDashboardMonthlyTrendToggleChange(el) {
+            showMonthlyTrendOnDashboard = !!el.checked;
+            await writeDB(STORES.SETTINGS, { key: "showMonthlyTrendOnDashboard", value: showMonthlyTrendOnDashboard });
+            applyMonthlyTrendDashboardVisibility();
         }
 
         // v181: Desktop "Insights" right rail (only visible at 1400px+, see the matching CSS).
@@ -2985,12 +3026,17 @@
         // --- SPA NAVIGATION PIPELINE ---
         // Every top-level page div's id — used by showPage() to hide all but the target,
         // so adding a new page never risks leaving a stale one visible underneath.
-        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-backup", "page-autolock", "page-database", "page-attachment-review", "page-total-summary", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-members", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
+        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-backup", "page-autolock", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-members", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
         function showPage(id) {
             APP_PAGE_IDS.forEach(p => {
                 const el = document.getElementById(p);
                 if (el) el.classList.toggle("hidden", p !== id);
             });
+            // v386: done here rather than in navigateToMonthlyTrendPage() alone so EVERY exit
+            // route (on-screen Back, hardware/gesture back, a sidebar jump straight to another
+            // page) returns the node to the Dashboard — there's no code path that shows a page
+            // without going through showPage().
+            placeMonthlyTrendSection(id);
             // Keeps the sidebar's active-item highlight correct even when it's persistently
             // visible (desktop/tablet) rather than only refreshed on drawer-open (mobile).
             updateSidebarActiveState();
@@ -3018,6 +3064,7 @@
                 case "page-database": return "Database";
                 case "page-attachment-review": return "Review Attachments";
                 case "page-total-summary": return "Total Bill Summary";
+                case "page-monthly-trend": return "Monthly Trend";
                 case "page-spending-breakdown": return "Spending Breakdown";
                 case "page-income-breakdown": return "Income Breakdown";
                 case "page-savings": return "Savings Statement";
@@ -4759,14 +4806,18 @@
                 </table>`;
         }
 
-        // v372: purely decorative echo of whatever's picked in Settings > Companion, sitting next
-        // to the "Monthly Trend" title. Reuses the exact same resolution order as
-        // applyCompanionPet() (custom photo -> COMPANIONS svg -> nothing) but never writes
-        // anything back to storage — it's a read-only mirror, not a second place to change it.
+        // v372: echo of whatever's picked next to the "Monthly Trend" title. Reuses the exact
+        // same resolution order as applyCompanionPet() (custom photo -> COMPANIONS svg ->
+        // nothing) but never writes anything back to storage from here — Companion is still
+        // edited only from its own picker.
+        // v382: was a straight, always-on mirror of Settings > Companion. Now checks its own
+        // independent pick first (getSavedMonthlyTrendMascotId, Settings > Monthly Trend Mascot)
+        // and only falls through to mirroring Companion when that's left on the default "match".
         async function renderMonthlyTrendMascotIcon() {
             const el = document.getElementById("monthlyTrendMascot");
             if (!el) return;
-            const petId = await getSavedCompanionId();
+            const ownId = await getSavedMonthlyTrendMascotId();
+            const petId = ownId === "match" ? await getSavedCompanionId() : ownId;
             let displayImg = null, displaySvg = null;
             if (typeof petId === "string" && petId.startsWith("custom:")) {
                 const photos = await getCompanionCustomPhotos();
@@ -5085,6 +5136,7 @@
             const autolockHidden = document.getElementById("page-autolock").classList.contains("hidden");
             const databaseHidden = document.getElementById("page-database").classList.contains("hidden");
             const totalSummaryHidden = document.getElementById("page-total-summary").classList.contains("hidden");
+            const monthlyTrendHidden = document.getElementById("page-monthly-trend").classList.contains("hidden");
             const spendingHidden = document.getElementById("page-spending-breakdown").classList.contains("hidden");
             const incomeHidden = document.getElementById("page-income-breakdown").classList.contains("hidden");
             const portfolioReportHidden = document.getElementById("page-portfolio-report").classList.contains("hidden");
@@ -5103,6 +5155,7 @@
             else if (!autolockHidden) target = "autolock";
             else if (!databaseHidden) target = "database";
             else if (!totalSummaryHidden) target = "total-summary";
+            else if (!monthlyTrendHidden) target = "monthly-trend";
             else if (!spendingHidden) target = "spending-breakdown";
             else if (!incomeHidden) target = "income-breakdown";
             else if (!portfolioReportHidden) target = "portfolio-report";
@@ -5139,6 +5192,7 @@
             else if (target === "autolock") navigateToAutoLockPage();
             else if (target === "database") navigateToDatabasePage();
             else if (target === "total-summary") navigateToTotalSummaryPage();
+            else if (target === "monthly-trend") navigateToMonthlyTrendPage();
             else if (target === "spending-breakdown") navigateToSpendingBreakdownPage();
             else if (target === "income-breakdown") navigateToIncomeBreakdownPage();
             else if (target === "portfolio-report") navigateToPortfolioReportPage();
@@ -7999,7 +8053,7 @@
         // `group` just drives the section heading in buildCompanionSwatchGrid() — same option
         // list either way, nothing else reads it.
         const COMPANIONS = [
-            { id: "none", name: "None" },
+            { id: "none", name: "None", short: "None" },
             // v348: the old single static "custom" entry is gone — custom photos are now a
             // dynamic, multi-item library (see COMPANION_PHOTOS_SETTINGS_KEY / "My Photos" group
             // below), not a fixed slot in this array. A saved photo's pet id is "custom:<photoId>"
@@ -8007,147 +8061,14 @@
             // same way this array's `svg`-less entries are special-cased.
             // v349: the "Other" group (Cat, Hamster) was dropped per request, leaving Chinese
             // Zodiac as the only built-in icon group.
-            // --- 12 Chinese zodiac animals (十二生肖) — same one-head-icon language as above,
-            // each with a distinguishing ear/horn/snout so they read apart from each other at
-            // swatch size. Rat→Pig is the traditional cycle order.
-            {
-                id: "rat", name: "Rat", group: "Chinese Zodiac",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="16" cy="16" r="3.5" /><circle cx="32" cy="16" r="3.5" />
-                    <circle cx="24" cy="28" r="11" />
-                    <path d="M24 33 L24 36" />
-                    <circle cx="20" cy="26" r="1.4" fill="currentColor" stroke="none" />
-                    <circle cx="28" cy="26" r="1.4" fill="currentColor" stroke="none" />
-                    <path d="M7 27 h7 M7 31 h7" opacity="0.7" /><path d="M34 27 h7 M34 31 h7" opacity="0.7" />
-                </svg>`
-            },
-            {
-                id: "ox", name: "Ox", group: "Chinese Zodiac",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 18 C9 11 15 9 18 14" /><path d="M39 18 C39 11 33 9 30 14" />
-                    <ellipse cx="24" cy="27" rx="13" ry="11.5" />
-                    <circle cx="19.5" cy="25" r="1.5" fill="currentColor" stroke="none" />
-                    <circle cx="28.5" cy="25" r="1.5" fill="currentColor" stroke="none" />
-                    <ellipse cx="24" cy="33" rx="6" ry="4" />
-                    <circle cx="21.5" cy="33" r="0.9" fill="currentColor" stroke="none" />
-                    <circle cx="26.5" cy="33" r="0.9" fill="currentColor" stroke="none" />
-                </svg>`
-            },
-            {
-                id: "tiger", name: "Tiger", group: "Chinese Zodiac",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 18 L16 8 L21 17" /><path d="M36 18 L32 8 L27 17" />
-                    <circle cx="24" cy="27" r="12" />
-                    <circle cx="19" cy="26" r="1.6" fill="currentColor" stroke="none" />
-                    <circle cx="29" cy="26" r="1.6" fill="currentColor" stroke="none" />
-                    <path d="M22 32 q2 2 4 0" />
-                    <path d="M14 22 l4 2 M34 22 l-4 2 M16 31 l4 1 M32 31 l-4 1" opacity="0.7" />
-                </svg>`
-            },
-            {
-                id: "rabbit", name: "Rabbit", group: "Chinese Zodiac",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M17 22 C14 14 15 6 18.5 5 C21 4 21 12 21 19" />
-                    <path d="M31 22 C34 14 33 6 29.5 5 C27 4 27 12 27 19" />
-                    <circle cx="24" cy="29" r="11" />
-                    <circle cx="19.5" cy="28" r="1.5" fill="currentColor" stroke="none" />
-                    <circle cx="28.5" cy="28" r="1.5" fill="currentColor" stroke="none" />
-                    <path d="M22.5 32 q1.5 1.5 3 0" />
-                </svg>`
-            },
-            {
-                id: "dragon", name: "Dragon", group: "Chinese Zodiac",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M13 15 L16 6 L19 13 L22 5" /><path d="M35 15 L32 6 L29 13 L26 5" />
-                    <circle cx="24" cy="27" r="12" />
-                    <path d="M12 24 q-4 1 -5 5 M36 24 q4 1 5 5" />
-                    <circle cx="19.5" cy="26" r="1.5" fill="currentColor" stroke="none" />
-                    <circle cx="28.5" cy="26" r="1.5" fill="currentColor" stroke="none" />
-                    <path d="M22 33 q2 2 4 0" />
-                </svg>`
-            },
-            {
-                id: "snake", name: "Snake", group: "Chinese Zodiac",
-                // v349: redesigned — the old thin single-stroke S-curve + plain circle read as a
-                // squiggle with a blob, not a snake (reported via screenshot). Now a thick coiled
-                // body (stroke-width 4.5, vs. the thin 2px outline every other icon uses for its
-                // body) so it reads as a snake's girth rather than a wire, feeding into a
-                // distinct wider head with an eye and a forked tongue — still the one exception
-                // to the shared "circular head" template (see the v342 note above), just a
-                // clearer version of that same exception.
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 40 C9 33 21 33 21 26 C21 19 9 19 9 12 C9 7 16 5 23 8" />
-                    <ellipse cx="30" cy="9" rx="6.5" ry="5" stroke-width="2.4" />
-                    <circle cx="27.5" cy="7.5" r="1.1" fill="currentColor" stroke="none" />
-                    <path d="M36 8 L40.5 6 M36 10 L40.5 12" stroke-width="1.8" opacity="0.85" />
-                </svg>`
-            },
-            {
-                id: "horse", name: "Horse", group: "Chinese Zodiac",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M15 16 L13 7 L20 14" /><path d="M33 16 L35 7 L28 14" />
-                    <path d="M18 8 q6 -3 12 0" opacity="0.7" />
-                    <ellipse cx="24" cy="28" rx="11" ry="12" />
-                    <circle cx="19.5" cy="26" r="1.5" fill="currentColor" stroke="none" />
-                    <circle cx="28.5" cy="26" r="1.5" fill="currentColor" stroke="none" />
-                    <ellipse cx="24" cy="35" rx="4" ry="2.6" />
-                </svg>`
-            },
-            {
-                id: "goat", name: "Goat", group: "Chinese Zodiac",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 18 C8 16 8 10 13 8 C16 11 15 15 16 18" />
-                    <path d="M34 18 C40 16 40 10 35 8 C32 11 33 15 32 18" />
-                    <circle cx="24" cy="27" r="12" />
-                    <circle cx="19.5" cy="26" r="1.5" fill="currentColor" stroke="none" />
-                    <circle cx="28.5" cy="26" r="1.5" fill="currentColor" stroke="none" />
-                    <path d="M22 33 l0 3 M24 33.5 l0 3.5 M26 33 l0 3" opacity="0.8" />
-                </svg>`
-            },
-            {
-                id: "monkey", name: "Monkey", group: "Chinese Zodiac",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="24" r="5.5" /><circle cx="36" cy="24" r="5.5" />
-                    <circle cx="24" cy="27" r="11" />
-                    <path d="M18 22 q2 -2 4 0 M26 22 q2 -2 4 0" opacity="0.8" />
-                    <circle cx="19.5" cy="26" r="1.5" fill="currentColor" stroke="none" />
-                    <circle cx="28.5" cy="26" r="1.5" fill="currentColor" stroke="none" />
-                    <ellipse cx="24" cy="33" rx="4" ry="2.6" />
-                </svg>`
-            },
-            {
-                id: "rooster", name: "Rooster", group: "Chinese Zodiac",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 14 q2 -6 4 0 q2 -7 4 0 q2 -6 4 0" />
-                    <circle cx="23" cy="28" r="11" />
-                    <path d="M12 30 q-4 1 -3 5" />
-                    <circle cx="19.5" cy="27" r="1.5" fill="currentColor" stroke="none" />
-                    <path d="M34 28 L41 30 L34 32 Z" />
-                </svg>`
-            },
-            {
-                id: "dog", name: "Dog", group: "Chinese Zodiac",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M13 14 q-4 6 -1 14" /><path d="M35 14 q4 6 1 14" />
-                    <circle cx="24" cy="27" r="12" />
-                    <circle cx="19.5" cy="26" r="1.6" fill="currentColor" stroke="none" />
-                    <circle cx="28.5" cy="26" r="1.6" fill="currentColor" stroke="none" />
-                    <ellipse cx="24" cy="30" rx="2.4" ry="1.8" fill="currentColor" stroke="none" />
-                    <path d="M24 32 v2 q0 2 3 2" />
-                </svg>`
-            },
-            {
-                id: "pig", name: "Pig", group: "Chinese Zodiac",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M13 17 q-2 -5 3 -6 q2 4 0 7" /><path d="M35 17 q2 -5 -3 -6 q-2 4 0 7" />
-                    <circle cx="24" cy="28" r="12" />
-                    <circle cx="19.5" cy="26" r="1.5" fill="currentColor" stroke="none" />
-                    <circle cx="28.5" cy="26" r="1.5" fill="currentColor" stroke="none" />
-                    <ellipse cx="24" cy="33" rx="5.5" ry="4" />
-                    <circle cx="21.5" cy="33" r="0.9" fill="currentColor" stroke="none" />
-                    <circle cx="26.5" cy="33" r="0.9" fill="currentColor" stroke="none" />
-                </svg>`
-            },
+            // v385: the 12 Chinese Zodiac preset icons (Rat..Pig, added in v342) were removed
+            // per request — the built-in icon set is gone entirely, so COMPANIONS now holds only
+            // the "None" entry and every real companion comes from the user's own "My Photos"
+            // library (see COMPANION_PHOTOS_SETTINGS_KEY below). Nothing else needed changing:
+            // buildMascotSwatchGridHTML()'s group loop simply finds no groups and renders no
+            // heading, and getSavedCompanionId()/getSavedMonthlyTrendMascotId() already validate
+            // the stored pick against this array — so an existing install still sitting on, say,
+            // "tiger" self-heals to None (or "Match Companion") on next read rather than breaking.
         ];
         // v347: Companion's selected pet id moved from localStorage into the IndexedDB `settings`
         // store (STORES.SETTINGS) — the same store defaultPaymentAccount/recentTxTypeFilter/etc.
@@ -8165,6 +8086,7 @@
         // migrateCompanionSingleImageToLibrary() and their calls in bootstrap() for the one-time
         // upgrade paths from v341-v346 (localStorage) and v343-v347 (single-slot) installs.
         const COMPANION_SETTINGS_KEY = "companionPetId";
+        const MONTHLY_TREND_MASCOT_SETTINGS_KEY = "monthlyTrendMascotId"; // v382
         const COMPANION_PHOTOS_SETTINGS_KEY = "companionCustomImages";
         const MAX_COMPANION_PHOTOS = 20;
         async function getCompanionCustomPhotos() {
@@ -8219,6 +8141,10 @@
             // tap versus uploading then having to go find and select the new thumbnail.
             await applyCompanionPet("custom:" + newPhoto.id);
             await buildCompanionSwatchGrid();
+            // v383: keep the Monthly Trend Mascot grid's "My Photos" count/list in sync if it's
+            // also open right now — same reasoning as removeCompanionCustomPhoto()'s matching call.
+            const trendPanel = document.getElementById("monthlyTrendMascotSettingsPanel");
+            if (trendPanel && trendPanel.style.display !== "none") await buildMonthlyTrendMascotSwatchGrid();
         }
         // v348: replaces v343-v347's single removeCompanionCustomImage() (which cleared the one
         // fixed slot) — this removes one specific photo from the library, identified by the "×"
@@ -8234,7 +8160,17 @@
             // it with — fall back to None rather than leaving the hero card's slot pointing at a
             // deleted image.
             if ((await getSavedCompanionId()) === "custom:" + photoId) await applyCompanionPet("none");
+            // v382: same idea for the independent Monthly Trend Mascot pick — getSavedMonthlyTrendMascotId()
+            // would self-heal to "match" on its own next read anyway, but writing it back here keeps
+            // the stored value honest rather than leaving a dangling "custom:<deleted-id>" in settings.
+            const rec = await readKeyDB("settings", MONTHLY_TREND_MASCOT_SETTINGS_KEY);
+            if (rec && rec.value === "custom:" + photoId) {
+                await writeDB(STORES.SETTINGS, { key: MONTHLY_TREND_MASCOT_SETTINGS_KEY, value: "match" });
+            }
             await buildCompanionSwatchGrid();
+            const trendPanel = document.getElementById("monthlyTrendMascotSettingsPanel");
+            if (trendPanel && trendPanel.style.display !== "none") await buildMonthlyTrendMascotSwatchGrid();
+            renderMonthlyTrendMascotIcon();
         }
         async function getSavedCompanionId() {
             const rec = await readKeyDB("settings", COMPANION_SETTINGS_KEY);
@@ -8244,6 +8180,22 @@
                 return photos.some(p => p.id === id.slice(7)) ? id : "none";
             }
             return COMPANIONS.some(c => c.id === id) ? id : "none";
+        }
+        // v382: independent from getSavedCompanionId() above — "match" (the default, including
+        // for anyone who never opens this new picker) means "use whatever Companion resolves to",
+        // same as the old always-mirrored behavior. Any other value is a companion id/custom:
+        // photo id picked specifically for this spot, validated the same way getSavedCompanionId()
+        // validates its own value (falls back to "match", not "none", if the saved pick no longer
+        // exists — e.g. a custom photo it pointed to was since removed).
+        async function getSavedMonthlyTrendMascotId() {
+            const rec = await readKeyDB("settings", MONTHLY_TREND_MASCOT_SETTINGS_KEY);
+            const id = rec ? rec.value : null;
+            if (id == null || id === "match") return "match";
+            if (typeof id === "string" && id.startsWith("custom:")) {
+                const photos = await getCompanionCustomPhotos();
+                return photos.some(p => p.id === id.slice(7)) ? id : "match";
+            }
+            return COMPANIONS.some(c => c.id === id) ? id : "match";
         }
         async function applyCompanionPet(petId, { save = true } = {}) {
             let resolvedId = petId;
@@ -8283,10 +8235,17 @@
             const grid = document.getElementById("companionSwatchGrid");
             if (!grid) return;
             const selectedId = await getSavedCompanionId();
+            grid.innerHTML = await buildMascotSwatchGridHTML(selectedId, "selectCompanion", []);
+        }
+        // v382: shared by both the Companion grid and the (independent) Monthly Trend Mascot
+        // grid below — `leadingOptions` lets a caller prepend extra hand-written swatches (the
+        // Monthly Trend picker uses this for its "Match Companion" option) ahead of the regular
+        // None/Zodiac/My Photos groups that both pickers share.
+        async function buildMascotSwatchGridHTML(selectedId, clickHandler, leadingOptions) {
             const photos = await getCompanionCustomPhotos();
             const swatchHTML = c => `
                 <span class="companion-swatch-wrap">
-                    <span class="companion-swatch${c.id === selectedId ? ' selected' : ''}" data-click="selectCompanion" data-pet-id="${c.id}" title="${c.name}">${c.svg || '<span style="color:#fff; font-size:0.65rem; font-weight:700;">None</span>'}</span>
+                    <span class="companion-swatch${c.id === selectedId ? ' selected' : ''}" data-click="${clickHandler}" data-pet-id="${c.id}" title="${c.name}">${c.svg || '<span style="color:#fff; font-size:0.65rem; font-weight:700;">' + c.short + '</span>'}</span>
                     <span class="companion-swatch-label">${c.name}</span>
                 </span>`;
             // v342: group into sections (undefined `group` — just "None" — gets no heading and
@@ -8294,7 +8253,7 @@
             // 12-strong Chinese Zodiac set doesn't read as one undifferentiated wall of icons.
             const ungrouped = COMPANIONS.filter(c => !c.group);
             const groups = [...new Set(COMPANIONS.filter(c => c.group).map(c => c.group))];
-            let html = `<div class="companion-swatch-grid">${ungrouped.map(swatchHTML).join("")}</div>`;
+            let html = `<div class="companion-swatch-grid">${leadingOptions.map(swatchHTML).join("")}${ungrouped.map(swatchHTML).join("")}</div>`;
             groups.forEach(g => {
                 html += `<p class="companion-group-label">${g}</p>`;
                 html += `<div class="companion-swatch-grid">${COMPANIONS.filter(c => c.group === g).map(swatchHTML).join("")}</div>`;
@@ -8304,7 +8263,12 @@
             // .companion-swatch-photo-holder); an "＋ Add" tile follows for as long as there's
             // room left (hidden once the library hits MAX_COMPANION_PHOTOS, with a plain count
             // in the heading telling the person why — the "×" on any thumbnail is then the only
-            // way to make room again).
+            // way to make room again). v382: the upload tile only renders in the Companion grid
+            // (clickHandler === "selectCompanion") — both pickers share the same 20-photo library
+            // (getCompanionCustomPhotos/MAX_COMPANION_PHOTOS), so a second upload entry point on
+            // the Monthly Trend grid would just be a duplicate of the same control. The "×" remove
+            // button, unlike Add, is NOT restricted this way — it's just a delete on the shared
+            // library, not a second instance of any control, so it's available from either grid.
             html += `<p class="companion-group-label">My Photos (${photos.length}/${MAX_COMPANION_PHOTOS})</p>`;
             html += `<div class="companion-swatch-grid">`;
             html += photos.map(p => {
@@ -8312,7 +8276,7 @@
                 return `
                     <span class="companion-swatch-wrap">
                         <span class="companion-swatch-photo-holder">
-                            <span class="companion-swatch${petId === selectedId ? ' selected' : ''}" data-click="selectCompanion" data-pet-id="${petId}" title="Custom photo">
+                            <span class="companion-swatch${petId === selectedId ? ' selected' : ''}" data-click="${clickHandler}" data-pet-id="${petId}" title="Custom photo">
                                 <img src="${p.dataUrl}" alt="Custom" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">
                             </span>
                             <button type="button" class="companion-swatch-remove" data-click="removeCompanionCustomPhoto" data-photo-id="${p.id}" title="Remove this photo" aria-label="Remove this photo">×</button>
@@ -8320,7 +8284,7 @@
                         <span class="companion-swatch-label">Photo</span>
                     </span>`;
             }).join("");
-            if (photos.length < MAX_COMPANION_PHOTOS) {
+            if (photos.length < MAX_COMPANION_PHOTOS && clickHandler === "selectCompanion") {
                 html += `
                     <span class="companion-swatch-wrap">
                         <span class="companion-swatch" data-click="triggerCompanionCustomImageUpload" title="Upload a new photo">
@@ -8330,13 +8294,16 @@
                     </span>`;
             }
             html += `</div>`;
-            grid.innerHTML = html;
+            return html;
         }
         async function selectCompanion(el) {
             await applyCompanionPet(el.dataset.petId);
             document.querySelectorAll("#companionSwatchGrid .companion-swatch").forEach(s => s.classList.toggle("selected", s.dataset.petId === el.dataset.petId));
             // v372: keep the Monthly Trend title's mascot mirror in sync immediately, in case
             // the dashboard is still mounted behind Settings (no page reload happens here).
+            // v382: only actually changes anything on screen there if Monthly Trend Mascot is
+            // still on "Match Companion" — renderMonthlyTrendMascotIcon() checks that itself, so
+            // this call is safe (a harmless no-op re-render) either way.
             renderMonthlyTrendMascotIcon();
         }
         async function toggleCompanionSettings() {
@@ -8345,6 +8312,40 @@
             if (isHidden) await buildCompanionSwatchGrid();
             panel.style.display = isHidden ? "flex" : "none";
         }
+        // v382: sibling picker to selectCompanion/toggleCompanionSettings/buildCompanionSwatchGrid
+        // above, for the independent Monthly Trend Mascot setting — same shape, writing to
+        // MONTHLY_TREND_MASCOT_SETTINGS_KEY instead of COMPANION_SETTINGS_KEY, and with a leading
+        // "Match Companion" swatch (id "match") that isn't in the COMPANIONS list itself since it
+        // has no meaning for the Companion picker.
+        async function selectMonthlyTrendMascot(el) {
+            const id = el.dataset.petId;
+            try { await writeDB(STORES.SETTINGS, { key: MONTHLY_TREND_MASCOT_SETTINGS_KEY, value: id }); } catch (e) {}
+            document.querySelectorAll("#monthlyTrendMascotSwatchGrid .companion-swatch").forEach(s => s.classList.toggle("selected", s.dataset.petId === id));
+            renderMonthlyTrendMascotIcon();
+        }
+        async function buildMonthlyTrendMascotSwatchGrid() {
+            const grid = document.getElementById("monthlyTrendMascotSwatchGrid");
+            if (!grid) return;
+            const selectedId = await getSavedMonthlyTrendMascotId();
+            const matchOption = {
+                id: "match", name: "Match Companion", short: "🔗",
+                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 24a6 6 0 0 1 6-6h6" /><path d="M30 24a6 6 0 0 1-6 6h-6" />
+                    <path d="M20 14l4 4-4 4" /><path d="M28 26l-4 4 4 4" />
+                </svg>`,
+            };
+            grid.innerHTML = await buildMascotSwatchGridHTML(selectedId, "selectMonthlyTrendMascot", [matchOption]);
+        }
+        async function toggleMonthlyTrendMascotSettings() {
+            const panel = document.getElementById("monthlyTrendMascotSettingsPanel");
+            const isHidden = panel.style.display === "none";
+            if (isHidden) await buildMonthlyTrendMascotSwatchGrid();
+            panel.style.display = isHidden ? "flex" : "none";
+        }
+        // v382: sibling to toggleCompanionSettingsFromDashboard() above — tapping the mascot next
+        // to "Monthly Trend" itself (not the title/chevron around it, which still toggles the
+        // table — see the span's own data-click in index.html, which shadows the parent's during
+        // event delegation's closest() walk) jumps to its own settings panel the same way.
         // Tapping the mascot itself on the dashboard jumps straight to Setting > Companion
         // (expanded) rather than just being decorative — mirrors how other dashboard chips
         // (e.g. the header currency pill) already double as shortcuts into Settings.
@@ -8353,6 +8354,14 @@
             setTimeout(async () => {
                 const panel = document.getElementById("companionSettingsPanel");
                 if (panel && panel.style.display === "none") await toggleCompanionSettings();
+                panel && panel.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 50);
+        }
+        function toggleMonthlyTrendMascotSettingsFromDashboard() {
+            navigateToDataSecurityPage();
+            setTimeout(async () => {
+                const panel = document.getElementById("monthlyTrendMascotSettingsPanel");
+                if (panel && panel.style.display === "none") await toggleMonthlyTrendMascotSettings();
                 panel && panel.scrollIntoView({ behavior: "smooth", block: "center" });
             }, 50);
         }
@@ -15857,6 +15866,7 @@
             await renderWarrantyReminderWidget();
             await refreshPlannedPaymentsViews();
             applyDashboardWidgetOrder();
+            applyMonthlyTrendDashboardVisibility();
             renderDesktopInsightsRail(accounts, txs);
 
             // v264/v266/v269: Dashboard "Remaining Budget" teaser — always the CURRENT month
@@ -17733,7 +17743,14 @@
             detailWrap.innerHTML = accNames.map(accName => `
                 <div style="margin-bottom:14px;">
                     <div style="font-size:0.72rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">📊 ${escapeHtml(accName)}</div>
-                    <table style="width:100%; border-collapse:collapse; font-size:0.78rem; white-space:nowrap;">
+                    <table style="width:100%; table-layout:fixed; border-collapse:collapse; font-size:0.78rem; white-space:nowrap;">
+                        <colgroup>
+                            <col style="width:34%;">
+                            <col style="width:18%;">
+                            <col style="width:18%;">
+                            <col style="width:18%;">
+                            <col style="width:12%;">
+                        </colgroup>
                         <thead>
                             <tr style="text-align:left; color:var(--text-muted); font-size:0.68rem; text-transform:uppercase;">
                                 <th style="padding:6px 10px;">Fund</th>
@@ -18161,6 +18178,18 @@
             renderTotalSummaryPage();
         }
 
+        // v386: the section node itself is relocated by showPage() -> placeMonthlyTrendSection();
+        // all that's left here is to (re)render it against fresh balances, which also re-measures
+        // the chart for this page's width rather than reusing the Dashboard's last layout.
+        async function navigateToMonthlyTrendPage() {
+            workspaceScrollY = window.scrollY;
+            showPage("page-monthly-trend");
+            window.scrollTo(0, 0);
+            pushVirtualState("monthly-trend");
+            const { accounts, txs } = await computeAccountBalances();
+            renderMonthlyTrendChart(txs, accounts);
+        }
+
         function navigateToAutoLockPage() {
             workspaceScrollY = window.scrollY;
             showPage("page-autolock");
@@ -18411,6 +18440,8 @@
             const storedRecentTxCount = await readKeyDB("settings", "recentTxCount");
             if (storedRecentTxCount) recentTxCount = storedRecentTxCount.value || 5;
 
+            const storedShowMonthlyTrend = await readKeyDB("settings", "showMonthlyTrendOnDashboard");
+            if (storedShowMonthlyTrend) showMonthlyTrendOnDashboard = storedShowMonthlyTrend.value !== false;
             const storedDashboardWidgetOrder = await readKeyDB("settings", "dashboardWidgetOrder");
             if (storedDashboardWidgetOrder) dashboardWidgetOrder = storedDashboardWidgetOrder.value === "recenttx-first" ? "recenttx-first" : "accounts-first";
 
@@ -19040,6 +19071,7 @@
                                 case "recentTxTypeFilter": recentTxTypeFilter = rec.value || "both"; break;
                                 case "recentTxAccountFilter": recentTxAccountFilter = rec.value || "all"; break;
                                 case "recentTxCount": recentTxCount = rec.value || 5; break;
+                                case "showMonthlyTrendOnDashboard": showMonthlyTrendOnDashboard = rec.value !== false; break;
                                 case "dashboardWidgetOrder": dashboardWidgetOrder = rec.value === "recenttx-first" ? "recenttx-first" : "accounts-first"; break;
                                 case "dashboardBudgetCategoriesShown": dashboardBudgetCategoriesShown = Array.isArray(rec.value) ? rec.value : []; break;
                                 case "dashboardBudgetWidgetEnabled": dashboardBudgetWidgetEnabled = rec.value !== false; break;
@@ -19205,6 +19237,7 @@
             selectMemberColor: (el) => selectMemberColor(el),
             toggleBgThemeSettings: () => toggleBgThemeSettings(),
             toggleDashboardWidgetsSettings: () => toggleDashboardWidgetsSettings(),
+            navigateToMonthlyTrendPage: () => navigateToMonthlyTrendPage(),
             toggleDefaultAccountsSettings: () => toggleDefaultAccountsSettings(),
             selectBgTheme: (el) => selectBgTheme(el),
             toggleNetWorthCardStyleSettings: () => toggleNetWorthCardStyleSettings(),
@@ -19214,6 +19247,9 @@
             selectCompanion: (el) => selectCompanion(el),
             triggerCompanionCustomImageUpload: () => triggerCompanionCustomImageUpload(),
             removeCompanionCustomPhoto: (el) => removeCompanionCustomPhoto(el),
+            toggleMonthlyTrendMascotSettings: () => toggleMonthlyTrendMascotSettings(),
+            toggleMonthlyTrendMascotSettingsFromDashboard: (el, e) => { e.stopPropagation(); toggleMonthlyTrendMascotSettingsFromDashboard(); },
+            selectMonthlyTrendMascot: (el) => selectMonthlyTrendMascot(el),
             triggerAccLogoUpload: () => triggerAccLogoUpload(),
             removeAccLogo: () => removeAccLogo(),
             savePlannedPaymentFromTxForm: () => savePlannedPaymentFromTxForm(),
@@ -19429,6 +19465,7 @@
             handleRecentTxSettingChange: () => handleRecentTxSettingChange(),
             handlePinnedAccountCountChange: () => handlePinnedAccountCountChange(),
             handleDashboardWidgetOrderChange: () => handleDashboardWidgetOrderChange(),
+            handleDashboardMonthlyTrendToggleChange: (el) => handleDashboardMonthlyTrendToggleChange(el),
             handleDashboardBudgetCategoryToggleChange: (el) => handleDashboardBudgetCategoryToggleChange(el),
             handleDashboardBudgetWidgetToggleChange: (el) => handleDashboardBudgetWidgetToggleChange(el),
             handlePinnedAccountSlotChange: (el) => handlePinnedAccountSlotChange(el),
