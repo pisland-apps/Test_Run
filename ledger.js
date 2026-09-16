@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v393";
+        const APP_VERSION = "v394";
         const APP_VERSION_DATE = "2026-09-16";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -2451,6 +2451,7 @@
         // current setting each time the panel opens, same as toggleBgThemeSettings() does for
         // its swatch grid.
         function toggleDashboardWidgetsSettings() {
+            ensureOnDataSecurityPage();
             const panel = document.getElementById("dashboardWidgetsSettingsPanel");
             if (!panel) return;
             const isHidden = panel.style.display === "none";
@@ -2531,6 +2532,7 @@
         // Re-populates both pickers from the accounts list each time the panel opens, same as
         // toggleDashboardWidgetsSettings() does for its own select.
         async function toggleDefaultAccountsSettings() {
+            ensureOnDataSecurityPage();
             const panel = document.getElementById("defaultAccountsSettingsPanel");
             if (!panel) return;
             const isHidden = panel.style.display === "none";
@@ -8009,7 +8011,38 @@
             if (detail) detail.classList.add("hidden");
         }
 
+        // v393: the 6 swatch-picker panels above (Background Theme, Net Worth Card Style,
+        // Companion, Monthly Trend Mascot, Dashboard Widgets, Default Accounts) all live inside
+        // #settingsDetailView, which only exists on page-datasecurity itself. Now that the icon
+        // rail is also cloned onto the other Settings sub-pages (Members/Categories/Templates/
+        // Tags/Backup/Auto-Lock/Database, see cloneSettingsIconRails()), tapping one of these 6
+        // icons from over there needs to land on page-datasecurity first before the panel can
+        // actually show — each of the 6 toggle*Settings() functions calls this first.
+        function ensureOnDataSecurityPage() {
+            const page = document.getElementById("page-datasecurity");
+            if (page && page.classList.contains("hidden")) {
+                navigateToDataSecurityPage();
+            }
+        }
+
+        // v393: clones the canonical #settingsIconGrid (page-datasecurity's icon rail) into every
+        // ".settings-icon-rail-slot" placeholder on the other Settings sub-pages (Members/
+        // Categories/Templates/Tags/Backup/Auto-Lock/Database) so the rail stays visible no matter
+        // which Settings page you're on, instead of only on page-datasecurity itself. Runs once at
+        // bootstrap — the rail's buttons never change at runtime, so a one-time clone is enough;
+        // no id attributes are cloned (the source grid's own id is only used here, not read
+        // elsewhere), so there's no collision from having several copies of it in the DOM.
+        function cloneSettingsIconRails() {
+            const source = document.getElementById("settingsIconGrid");
+            if (!source) return;
+            document.querySelectorAll(".settings-icon-rail-slot").forEach(slot => {
+                slot.className = "settings-icon-grid";
+                slot.innerHTML = source.innerHTML;
+            });
+        }
+
         function toggleBgThemeSettings() {
+            ensureOnDataSecurityPage();
             const panel = document.getElementById("bgThemeSettingsPanel");
             const isHidden = panel.style.display === "none";
             if (isHidden) {
@@ -8073,6 +8106,7 @@
             document.querySelectorAll("#netWorthCardStyleSwatchGrid .color-swatch").forEach(s => s.classList.toggle("selected", s.dataset.styleId === el.dataset.styleId));
         }
         function toggleNetWorthCardStyleSettings() {
+            ensureOnDataSecurityPage();
             const panel = document.getElementById("netWorthCardStyleSettingsPanel");
             const isHidden = panel.style.display === "none";
             if (isHidden) {
@@ -8353,6 +8387,7 @@
             renderMonthlyTrendMascotIcon();
         }
         async function toggleCompanionSettings() {
+            ensureOnDataSecurityPage();
             const panel = document.getElementById("companionSettingsPanel");
             const isHidden = panel.style.display === "none";
             if (isHidden) {
@@ -8389,6 +8424,7 @@
             grid.innerHTML = await buildMascotSwatchGridHTML(selectedId, "selectMonthlyTrendMascot", [matchOption]);
         }
         async function toggleMonthlyTrendMascotSettings() {
+            ensureOnDataSecurityPage();
             const panel = document.getElementById("monthlyTrendMascotSettingsPanel");
             const isHidden = panel.style.display === "none";
             if (isHidden) {
@@ -18406,6 +18442,7 @@
         }
 
         async function bootstrap() {
+            cloneSettingsIconRails();
             const lockResult = await runLockFlow();
             await initDB();
             if (lockResult.isNewSetup) {

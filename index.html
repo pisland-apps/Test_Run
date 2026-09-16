@@ -2184,6 +2184,11 @@
             transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
         }
         #settingsDetailView { flex: 1; min-width: 0; }
+        /* v393: the same icon rail, cloned (via cloneSettingsIconRails() in ledger.js) onto every
+           other Settings sub-page (Members/Categories/Templates/Tags/Backup/Auto-Lock/Database)
+           so it's always visible while inside Settings, not just on page-datasecurity itself —
+           these slots start empty and get the rail's innerHTML injected once at app init. */
+        .settings-page-content { flex: 1; min-width: 0; }
         .settings-icon-btn:hover {
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             transform: translateY(-1px);
@@ -3425,6 +3430,9 @@
             </div>
         </div>
 
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content">
         <div class="section-header" style="margin-top:0;">
             <span class="section-title">Default Category</span>
         </div>
@@ -3454,6 +3462,8 @@
             <span class="section-title">🔴 Spending Categories</span>
         </div>
         <div class="config-list" id="categoriesPageExpenseList" style="padding-bottom:88px;"></div>
+        </div>
+        </div>
 
         <button class="fab-btn" data-click="openCategoryFormModal" aria-label="Add category" title="Add category">+</button>
     </div>
@@ -3468,6 +3478,9 @@
             </div>
         </div>
 
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content">
         <div class="section-header" style="margin-top:0;">
             <span class="section-title">🟢 Income Templates</span>
         </div>
@@ -3477,6 +3490,8 @@
             <span class="section-title">🔴 Expense Templates</span>
         </div>
         <div class="config-list" id="templatesPageExpenseList" style="padding-bottom:88px;"></div>
+        </div>
+        </div>
 
         <button class="fab-btn" data-click="openTemplateFormModal" aria-label="Add template" title="Add template">+</button>
     </div>
@@ -3491,7 +3506,12 @@
             </div>
         </div>
 
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content">
         <div class="config-list" id="tagsPageList" style="padding-bottom:88px;"></div>
+        </div>
+        </div>
 
         <button class="fab-btn" data-click="openTagFormModal" aria-label="Add tag" title="Add tag">+</button>
     </div>
@@ -3681,6 +3701,9 @@
             </div>
         </div>
 
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content">
         <div class="section-header" style="margin-top:0;">
             <span class="section-title">Security</span>
         </div>
@@ -3711,6 +3734,8 @@
             </label>
         </div>
         <p class="export-hint-text hidden" id="exportPlaintextHint">明文备份不含密码保护，请妥善保管</p>
+        </div>
+        </div>
     </div>
 
     <!-- ================= PAGE: AUTO-LOCK (split out of Backup & Restore, v32) ================= -->
@@ -3723,6 +3748,9 @@
             </div>
         </div>
 
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content">
         <div class="section-header" style="margin-top:0;">
             <span class="section-title">Security</span>
         </div>
@@ -3737,6 +3765,8 @@
             </select>
         </div>
         <p style="font-size:0.75rem; color:var(--text-muted);">Resets on any tap, click, keystroke, or scroll while unlocked. Choosing "Never" disables idle auto-lock entirely — you can still lock the app manually any time via the 🔒 header button.</p>
+        </div>
+        </div>
     </div>
 
     <!-- ================= PAGE: APP LOCAL DATABASE (split out of Backup & Restore, v32) ================= -->
@@ -3749,6 +3779,9 @@
             </div>
         </div>
 
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content">
         <div class="data-meter-box">
             <div id="appStorageText">App Local Database footprint: ~0.00 MB (0 attached, 0.00 MB)</div>
             <div class="hardware-track">
@@ -3762,6 +3795,8 @@
              taking up that "attachments" figure above before anything gets deleted. Cleanup
              itself isn't built yet (this is review-only), see navigateToAttachmentReviewPage(). -->
         <button type="button" class="submit-btn" style="background:var(--chip-bg); color:var(--text-main); margin-top:14px;" data-click="navigateToAttachmentReviewPage">🔍 Review Attachments</button>
+        </div>
+        </div>
     </div>
 
     <!-- ================= PAGE: REVIEW ATTACHMENTS (v278) =================
@@ -4547,7 +4582,12 @@
                 <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Tag accounts to a member — husband, wife, kids, etc.</p>
             </div>
         </div>
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content">
         <div class="config-list" id="membersPageList" style="padding-bottom:88px;"></div>
+        </div>
+        </div>
         <button class="fab-btn" data-click="openMemberFormModal" aria-label="Add member" title="Add member">+</button>
     </div>
 
