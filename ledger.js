@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v391";
+        const APP_VERSION = "v392";
         const APP_VERSION_DATE = "2026-09-16";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -2463,9 +2463,12 @@
                 const budgetToggle = document.getElementById("dashboardBudgetWidgetToggle");
                 if (budgetToggle) budgetToggle.checked = dashboardBudgetWidgetEnabled;
                 renderDashboardBudgetCategoryToggles();
-                enterSettingsDetail("Dashboard Widgets");
+                enterSettingsDetail("dashboardWidgetsSettingsPanel", "Dashboard Widgets");
+                panel.style.display = "flex";
+            } else {
+                panel.style.display = "none";
+                backToSettingsGrid();
             }
-            panel.style.display = isHidden ? "flex" : "none";
         }
 
         async function handleDashboardBudgetWidgetToggleChange(el) {
@@ -2534,9 +2537,12 @@
             if (isHidden) {
                 await populateDefaultPaymentAccountSelect();
                 await populateDefaultReceiveAccountSelect();
-                enterSettingsDetail("Default Accounts");
+                enterSettingsDetail("defaultAccountsSettingsPanel", "Default Accounts");
+                panel.style.display = "flex";
+            } else {
+                panel.style.display = "none";
+                backToSettingsGrid();
             }
-            panel.style.display = isHidden ? "flex" : "none";
         }
 
         // v224: persists the chosen Dashboard widget order and re-renders so it takes effect
@@ -7980,39 +7986,40 @@
             buildBgThemeSwatchGrid();
         }
 
-        // v389: Setting page icon grid — tapping "Setting" now lands on a grid of icon-only
-        // tiles (#settingsIconGrid) instead of a labeled list. The six items below that used to
-        // expand an inline panel now open that same panel full-screen instead, via these two
-        // helpers: enterSettingsDetail() hides the grid and reveals #settingsDetailView with the
-        // given title; backToSettingsGrid() (the detail view's own "‹ Back") reverses it and
-        // re-hides every panel so the next open starts clean. navigateToDataSecurityPage() also
-        // calls backToSettingsGrid() on every fresh entry to Setting, in case a device/browser
-        // back button left a detail panel open. The six toggle*Settings() functions below are
-        // otherwise unchanged (same build/populate-on-open logic) — each just also calls
-        // enterSettingsDetail() when it opens its panel.
-        function enterSettingsDetail(title) {
-            const grid = document.getElementById("settingsIconGrid");
+        // v392: icon column + detail pane now sit side by side and the column always stays
+        // visible (previously the column hid while a detail panel was open, requiring "‹ Back"
+        // before switching to a different item). enterSettingsDetail(panelId, title) hides any
+        // other open panel and reveals #settingsDetailView with the given title;
+        // backToSettingsGrid() clears the pane back to empty (used by the pane's own "‹ Back",
+        // and by re-clicking an already-open icon to collapse it). navigateToDataSecurityPage()
+        // also calls backToSettingsGrid() on every fresh entry to Setting, so it starts empty
+        // rather than showing whatever was last open.
+        function enterSettingsDetail(panelId, title) {
+            document.querySelectorAll("#settingsDetailView .settings-detail-panel").forEach(p => {
+                if (p.id !== panelId) p.style.display = "none";
+            });
             const detail = document.getElementById("settingsDetailView");
-            if (grid) grid.style.display = "none";
             if (detail) detail.classList.remove("hidden");
             const titleEl = document.getElementById("settingsDetailTitle");
             if (titleEl) titleEl.textContent = title || "";
-            window.scrollTo(0, 0);
         }
         function backToSettingsGrid() {
             document.querySelectorAll("#settingsDetailView .settings-detail-panel").forEach(p => { p.style.display = "none"; });
-            const grid = document.getElementById("settingsIconGrid");
             const detail = document.getElementById("settingsDetailView");
             if (detail) detail.classList.add("hidden");
-            if (grid) grid.style.display = "";
-            window.scrollTo(0, 0);
         }
 
         function toggleBgThemeSettings() {
             const panel = document.getElementById("bgThemeSettingsPanel");
             const isHidden = panel.style.display === "none";
-            if (isHidden) { buildBgThemeSwatchGrid(); enterSettingsDetail("Background Theme"); }
-            panel.style.display = isHidden ? "flex" : "none";
+            if (isHidden) {
+                buildBgThemeSwatchGrid();
+                enterSettingsDetail("bgThemeSettingsPanel", "Background Theme");
+                panel.style.display = "flex";
+            } else {
+                panel.style.display = "none";
+                backToSettingsGrid();
+            }
         }
 
         // --- v326: Net Worth Card Style (Setting page) --------------------------------------
@@ -8068,8 +8075,14 @@
         function toggleNetWorthCardStyleSettings() {
             const panel = document.getElementById("netWorthCardStyleSettingsPanel");
             const isHidden = panel.style.display === "none";
-            if (isHidden) { buildNetWorthCardStyleSwatchGrid(); enterSettingsDetail("Net Worth Card Style"); }
-            panel.style.display = isHidden ? "flex" : "none";
+            if (isHidden) {
+                buildNetWorthCardStyleSwatchGrid();
+                enterSettingsDetail("netWorthCardStyleSettingsPanel", "Net Worth Card Style");
+                panel.style.display = "flex";
+            } else {
+                panel.style.display = "none";
+                backToSettingsGrid();
+            }
         }
 
         // --- v341: Companion (Setting page) --------------------------------------------------
@@ -8342,8 +8355,14 @@
         async function toggleCompanionSettings() {
             const panel = document.getElementById("companionSettingsPanel");
             const isHidden = panel.style.display === "none";
-            if (isHidden) { await buildCompanionSwatchGrid(); enterSettingsDetail("Companion"); }
-            panel.style.display = isHidden ? "flex" : "none";
+            if (isHidden) {
+                await buildCompanionSwatchGrid();
+                enterSettingsDetail("companionSettingsPanel", "Companion");
+                panel.style.display = "flex";
+            } else {
+                panel.style.display = "none";
+                backToSettingsGrid();
+            }
         }
         // v382: sibling picker to selectCompanion/toggleCompanionSettings/buildCompanionSwatchGrid
         // above, for the independent Monthly Trend Mascot setting — same shape, writing to
@@ -8372,8 +8391,14 @@
         async function toggleMonthlyTrendMascotSettings() {
             const panel = document.getElementById("monthlyTrendMascotSettingsPanel");
             const isHidden = panel.style.display === "none";
-            if (isHidden) { await buildMonthlyTrendMascotSwatchGrid(); enterSettingsDetail("Monthly Trend Mascot"); }
-            panel.style.display = isHidden ? "flex" : "none";
+            if (isHidden) {
+                await buildMonthlyTrendMascotSwatchGrid();
+                enterSettingsDetail("monthlyTrendMascotSettingsPanel", "Monthly Trend Mascot");
+                panel.style.display = "flex";
+            } else {
+                panel.style.display = "none";
+                backToSettingsGrid();
+            }
         }
         // v382: sibling to toggleCompanionSettingsFromDashboard() above — tapping the mascot next
         // to "Monthly Trend" itself (not the title/chevron around it, which still toggles the

@@ -2152,15 +2152,19 @@
            expanding a panel in place. Same card visual language as .config-item (bg/border/
            shadow) so it still reads as part of this app, just laid out as a grid instead of a
            list. */
-        /* v390: single narrow left column of icon tiles (per screenshot bracket "1") instead of
-           a 4-wide grid — same tile styling, just stacked one-per-row and hugging the left edge
-           rather than stretching full width. */
+        /* v392: icon column + detail pane side by side, both always visible — clicking a
+           different icon swaps the pane's content directly instead of hiding the column. */
+        .settings-split {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            margin-top: 12px;
+        }
         .settings-icon-grid {
             display: flex;
             flex-direction: column;
             gap: 10px;
-            margin-top: 12px;
-            width: fit-content;
+            flex-shrink: 0;
         }
         .settings-icon-btn {
             display: flex;
@@ -2177,6 +2181,7 @@
             cursor: pointer;
             transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
         }
+        #settingsDetailView { flex: 1; min-width: 0; }
         .settings-icon-btn:hover {
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             transform: translateY(-1px);
@@ -4298,12 +4303,13 @@
                 <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Members, backups, auto-lock &amp; storage</p>
             </div>
         </div>
-        <!-- v389: icon-only grid — the default view when entering Setting. Each tile opens its
-             item's detail either as a full-screen panel below (#settingsDetailView, for the six
-             items that used to expand inline) or by navigating straight to that item's own
-             existing page (Manage Members/Categories/Templates/Tags/Backup/Auto-Lock/Database,
-             Currency Setting, Lock App Now, Reset App Data — unchanged, just triggered from a
-             tile now instead of a labeled row). -->
+        <!-- v392: icon column + detail pane sit side by side and both stay visible — clicking a
+             different icon just swaps the detail pane's content, no need to go back first.
+             (Manage Members/Categories/Templates/Tags/Backup/Auto-Lock/Database, Currency
+             Setting, Lock App Now, Reset App Data still navigate to their own existing full
+             page, same as before — this split view only applies to the six items that used to
+             expand an inline panel.) -->
+        <div class="settings-split">
         <div id="settingsIconGrid" class="settings-icon-grid">
             <button class="settings-icon-btn" title="Background Theme" aria-label="Background Theme" data-click="toggleBgThemeSettings"><span class="settings-icon-emoji">🎨</span></button>
             <button class="settings-icon-btn" title="Net Worth Card Style" aria-label="Net Worth Card Style" data-click="toggleNetWorthCardStyleSettings"><span class="settings-icon-emoji">🎴</span></button>
@@ -4323,8 +4329,10 @@
             <button class="settings-icon-btn settings-icon-btn-danger" title="Reset App Data" aria-label="Reset App Data" data-click="openResetAppDataModal"><span class="settings-icon-emoji" style="color:var(--expense-color);">🗑️</span></button>
         </div>
 
-        <!-- v389: full-screen detail view — hidden until a grid tile above opens one of the six
-             panels below; backToSettingsGrid() (its own "‹ Back") returns to the grid above. -->
+        <!-- v392: detail pane — empty/hidden until an icon on the left opens one of the six
+             panels below; clicking another icon over there swaps which panel shows here
+             directly. "‹ Back" clears the pane back to empty (same effect as clicking the same
+             icon again). -->
         <div id="settingsDetailView" class="hidden">
             <div class="nav-header">
                 <button class="back-btn" data-click="backToSettingsGrid">&larr; Back</button>
@@ -4495,6 +4503,7 @@
                     <select id="defaultReceiveAccountSelect" style="display:none;" data-change="saveDefaultReceiveAccount"></select>
                 </div>
             </div>
+        </div>
         </div>
     </div>
 
