@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v389";
+        const APP_VERSION = "v391";
         const APP_VERSION_DATE = "2026-09-16";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -19248,6 +19248,13 @@
             handleBackupBackClick: () => handleBackupBackClick(),
             navigateToAllLedgerPage: () => navigateToAllLedgerPage(),
             navigateToDataSecurityPage: () => navigateToDataSecurityPage(),
+            // v389: the Setting page's icon-grid detail views (Background Theme, Net Worth Card
+            // Style, Companion, Monthly Trend Mascot, Dashboard Widgets, Default Accounts) each
+            // have their own "‹ Back" next to the item's title, separate from the outer "‹ Back"
+            // next to "Setting" itself (which still exits to the Dashboard via
+            // navigateToDataSecurityPage's own data-click above). This one was missing from the
+            // dispatch table, which is why it silently did nothing — adding it here is the fix.
+            backToSettingsGrid: () => backToSettingsGrid(),
             // v278: page-database's own back button used to only be reachable via sidebarGo's
             // "database" case (see sidebarGo() above) — this is the first place something
             // navigates INTO that page directly via its own data-click (the new "Review

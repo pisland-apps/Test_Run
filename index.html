@@ -2152,17 +2152,23 @@
            expanding a panel in place. Same card visual language as .config-item (bg/border/
            shadow) so it still reads as part of this app, just laid out as a grid instead of a
            list. */
+        /* v390: single narrow left column of icon tiles (per screenshot bracket "1") instead of
+           a 4-wide grid — same tile styling, just stacked one-per-row and hugging the left edge
+           rather than stretching full width. */
         .settings-icon-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            display: flex;
+            flex-direction: column;
             gap: 10px;
             margin-top: 12px;
+            width: fit-content;
         }
         .settings-icon-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            aspect-ratio: 1;
+            width: 64px;
+            height: 64px;
+            flex-shrink: 0;
             background: var(--card-bg);
             border-radius: 14px;
             border: 1px solid var(--border-color);
