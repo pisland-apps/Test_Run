@@ -10,8 +10,8 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v388";
-        const APP_VERSION_DATE = "2026-09-15";
+        const APP_VERSION = "v389";
+        const APP_VERSION_DATE = "2026-09-16";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
         // inconsistently across platforms/fonts). Used by the static Amount field button
@@ -2463,6 +2463,7 @@
                 const budgetToggle = document.getElementById("dashboardBudgetWidgetToggle");
                 if (budgetToggle) budgetToggle.checked = dashboardBudgetWidgetEnabled;
                 renderDashboardBudgetCategoryToggles();
+                enterSettingsDetail("Dashboard Widgets");
             }
             panel.style.display = isHidden ? "flex" : "none";
         }
@@ -2533,6 +2534,7 @@
             if (isHidden) {
                 await populateDefaultPaymentAccountSelect();
                 await populateDefaultReceiveAccountSelect();
+                enterSettingsDetail("Default Accounts");
             }
             panel.style.display = isHidden ? "flex" : "none";
         }
@@ -5017,6 +5019,9 @@
             sidebarNavPending = true;
             workspaceScrollY = window.scrollY;
             showPage("page-datasecurity");
+            // v389: always land on the icon grid, not whatever detail panel happened to be open
+            // last time — covers a device/browser back button returning here mid-detail.
+            backToSettingsGrid();
             window.scrollTo(0, 0);
             pushVirtualState("datasecurity");
         }
@@ -5315,7 +5320,7 @@
                 return;
             }
 
-            document.getElementById("settingsBasePill").textContent = baseCurrency;
+            const settingsBasePillEl = document.getElementById("settingsBasePill"); if (settingsBasePillEl) settingsBasePillEl.textContent = baseCurrency;
             closeModal("currencyModal");
             renderApp();
         }
@@ -7975,10 +7980,38 @@
             buildBgThemeSwatchGrid();
         }
 
+        // v389: Setting page icon grid — tapping "Setting" now lands on a grid of icon-only
+        // tiles (#settingsIconGrid) instead of a labeled list. The six items below that used to
+        // expand an inline panel now open that same panel full-screen instead, via these two
+        // helpers: enterSettingsDetail() hides the grid and reveals #settingsDetailView with the
+        // given title; backToSettingsGrid() (the detail view's own "‹ Back") reverses it and
+        // re-hides every panel so the next open starts clean. navigateToDataSecurityPage() also
+        // calls backToSettingsGrid() on every fresh entry to Setting, in case a device/browser
+        // back button left a detail panel open. The six toggle*Settings() functions below are
+        // otherwise unchanged (same build/populate-on-open logic) — each just also calls
+        // enterSettingsDetail() when it opens its panel.
+        function enterSettingsDetail(title) {
+            const grid = document.getElementById("settingsIconGrid");
+            const detail = document.getElementById("settingsDetailView");
+            if (grid) grid.style.display = "none";
+            if (detail) detail.classList.remove("hidden");
+            const titleEl = document.getElementById("settingsDetailTitle");
+            if (titleEl) titleEl.textContent = title || "";
+            window.scrollTo(0, 0);
+        }
+        function backToSettingsGrid() {
+            document.querySelectorAll("#settingsDetailView .settings-detail-panel").forEach(p => { p.style.display = "none"; });
+            const grid = document.getElementById("settingsIconGrid");
+            const detail = document.getElementById("settingsDetailView");
+            if (detail) detail.classList.add("hidden");
+            if (grid) grid.style.display = "";
+            window.scrollTo(0, 0);
+        }
+
         function toggleBgThemeSettings() {
             const panel = document.getElementById("bgThemeSettingsPanel");
             const isHidden = panel.style.display === "none";
-            if (isHidden) buildBgThemeSwatchGrid();
+            if (isHidden) { buildBgThemeSwatchGrid(); enterSettingsDetail("Background Theme"); }
             panel.style.display = isHidden ? "flex" : "none";
         }
 
@@ -8035,7 +8068,7 @@
         function toggleNetWorthCardStyleSettings() {
             const panel = document.getElementById("netWorthCardStyleSettingsPanel");
             const isHidden = panel.style.display === "none";
-            if (isHidden) buildNetWorthCardStyleSwatchGrid();
+            if (isHidden) { buildNetWorthCardStyleSwatchGrid(); enterSettingsDetail("Net Worth Card Style"); }
             panel.style.display = isHidden ? "flex" : "none";
         }
 
@@ -8309,7 +8342,7 @@
         async function toggleCompanionSettings() {
             const panel = document.getElementById("companionSettingsPanel");
             const isHidden = panel.style.display === "none";
-            if (isHidden) await buildCompanionSwatchGrid();
+            if (isHidden) { await buildCompanionSwatchGrid(); enterSettingsDetail("Companion"); }
             panel.style.display = isHidden ? "flex" : "none";
         }
         // v382: sibling picker to selectCompanion/toggleCompanionSettings/buildCompanionSwatchGrid
@@ -8339,7 +8372,7 @@
         async function toggleMonthlyTrendMascotSettings() {
             const panel = document.getElementById("monthlyTrendMascotSettingsPanel");
             const isHidden = panel.style.display === "none";
-            if (isHidden) await buildMonthlyTrendMascotSwatchGrid();
+            if (isHidden) { await buildMonthlyTrendMascotSwatchGrid(); enterSettingsDetail("Monthly Trend Mascot"); }
             panel.style.display = isHidden ? "flex" : "none";
         }
         // v382: sibling to toggleCompanionSettingsFromDashboard() above — tapping the mascot next
@@ -15805,7 +15838,7 @@
 
             const { accounts, txs, nativeBalances } = await computeAccountBalances();
 
-            document.getElementById("settingsBasePill").textContent = baseCurrency;
+            const settingsBasePillEl = document.getElementById("settingsBasePill"); if (settingsBasePillEl) settingsBasePillEl.textContent = baseCurrency;
 
             let globalBaseNetWorth = 0;
             const currencyTotals = {}; // native (unconverted) sum per currency actually held, across every account
