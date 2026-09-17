@@ -3461,6 +3461,26 @@
         <div class="settings-icon-rail-slot"></div>
         <div class="settings-page-content">
         <div class="section-header" style="margin-top:0;">
+            <span class="section-title">Default Accounts</span>
+        </div>
+        <div class="form-row-inline" style="margin-bottom:18px;">
+            <div>
+                <label>Default Payment Account</label>
+                <button type="button" id="defaultPaymentAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultPaymentAccountSelect" data-title="Default Payment Account">
+                    <span id="defaultPaymentAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                </button>
+                <select id="defaultPaymentAccountSelect" style="display:none;" data-change="saveDefaultPaymentAccount"></select>
+            </div>
+            <div>
+                <label>Default Receive Account</label>
+                <button type="button" id="defaultReceiveAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultReceiveAccountSelect" data-title="Default Receive Account">
+                    <span id="defaultReceiveAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                </button>
+                <select id="defaultReceiveAccountSelect" style="display:none;" data-change="saveDefaultReceiveAccount"></select>
+            </div>
+        </div>
+
+        <div class="section-header" style="margin-top:0;">
             <span class="section-title">Default Category</span>
         </div>
         <div class="form-row-inline" style="margin-bottom:18px;">
@@ -4374,7 +4394,6 @@
             <button class="settings-icon-btn" title="Companion" aria-label="Companion" data-click="navigateToCompanionPage"><span class="settings-icon-emoji">🐾</span></button>
             <button class="settings-icon-btn" title="Dashboard Widgets" aria-label="Dashboard Widgets" data-click="navigateToDashboardWidgetsPage"><span class="settings-icon-emoji">📊</span></button>
             <button class="settings-icon-btn" title="Currency Setting" aria-label="Currency Setting" data-click="openCurrencyConfig"><span class="settings-icon-emoji">💱</span></button>
-            <button class="settings-icon-btn" title="Default Accounts" aria-label="Default Accounts" data-click="navigateToDefaultAccountsPage"><span class="settings-icon-emoji">💰</span></button>
             <button class="settings-icon-btn" title="Manage Members" aria-label="Manage Members" data-click="sidebarGo" data-target="members"><span class="settings-icon-emoji">👪</span></button>
             <button class="settings-icon-btn" title="Manage Categories" aria-label="Manage Categories" data-click="navigateToCategoriesPage"><span class="settings-icon-emoji">🏷️</span></button>
             <button class="settings-icon-btn" title="Transaction Templates" aria-label="Transaction Templates" data-click="navigateToTemplatesPage"><span class="settings-icon-emoji">🧾</span></button>
@@ -4600,38 +4619,8 @@
         </div>
     </div>
 
-    <!-- ================= PAGE: DEFAULT ACCOUNTS (v227; split into own page v394) ================= -->
-    <div id="page-defaultaccounts" class="page hidden">
-        <div class="nav-header">
-            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
-            <div>
-                <h3 style="font-weight:800; font-size:1.2rem;">Default Accounts</h3>
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Default payment &amp; receive accounts</p>
-            </div>
-        </div>
-        <div class="settings-split">
-        <div class="settings-icon-rail-slot"></div>
-        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:14px;">
-            <!-- v227: these used to live in a card at the top of the Accounts page; moved here
-                 since they're app-wide preferences, not something specific to browsing accounts. -->
-            <div class="form-row" style="margin-bottom:0;">
-                <label>Default Payment Account</label>
-                <button type="button" id="defaultPaymentAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultPaymentAccountSelect" data-title="Default Payment Account">
-                    <span id="defaultPaymentAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                </button>
-                <select id="defaultPaymentAccountSelect" style="display:none;" data-change="saveDefaultPaymentAccount"></select>
-            </div>
-            <div class="form-row" style="margin-bottom:0;">
-                <label>Default Receive Account</label>
-                <button type="button" id="defaultReceiveAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultReceiveAccountSelect" data-title="Default Receive Account">
-                    <span id="defaultReceiveAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                </button>
-                <select id="defaultReceiveAccountSelect" style="display:none;" data-change="saveDefaultReceiveAccount"></select>
-            </div>
-        </div>
-        </div>
-    </div>
-
+    <!-- (Default Accounts merged into page-categories, v398 — see "Default Accounts" block
+         at the top of that page.) -->
     <!-- ================= PAGE: DAILY NAV UPDATE (manual fund price entry, applies to all held funds) ================= -->
     <div id="page-navupdate" class="page hidden">
         <div class="nav-header" style="align-items:flex-start; flex-wrap:wrap; gap:10px;">

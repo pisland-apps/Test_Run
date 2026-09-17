@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v398";
+        const APP_VERSION = "v399";
         const APP_VERSION_DATE = "2026-09-16";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -2002,17 +2002,18 @@
             const navUpdatePage = document.getElementById("page-navupdate");
             const dataSecurityPage = document.getElementById("page-datasecurity");
             // v394: the items that used to be inline panels on page-datasecurity (Background
-            // Theme/Net Worth Card Style/Companion/Dashboard Widgets/Default Accounts) are now
+            // Theme/Net Worth Card Style/Companion/Dashboard Widgets) are now
             // their own pages, bucketed below with Categories/Backup/etc. — same treatment as
             // those, since their on-screen "← Back" also now goes straight to navigateToWorkspace()
             // (see the "v394" comment on that bucket below). v397: Monthly Trend Mascot's own
             // separate page was merged into page-companion (a toggle now picks which of the two
             // settings that one page's grid edits) — no separate page-id to bucket here anymore.
+            // v398: Default Accounts' own page was folded back into page-categories (grouped with
+            // the other add-transaction defaults) — no separate page-id here either.
             const bgThemePage = document.getElementById("page-bgtheme");
             const netWorthCardStylePage = document.getElementById("page-networthcardstyle");
             const companionPage = document.getElementById("page-companion");
             const dashboardWidgetsPage = document.getElementById("page-dashboardwidgets");
-            const defaultAccountsPage = document.getElementById("page-defaultaccounts");
             const membersPage = document.getElementById("page-members");
             const memberPage = document.getElementById("page-member");
             const fundActivityPage = document.getElementById("page-fundactivity");
@@ -2067,7 +2068,6 @@
                 !netWorthCardStylePage.classList.contains("hidden") ||
                 !companionPage.classList.contains("hidden") ||
                 !dashboardWidgetsPage.classList.contains("hidden") ||
-                !defaultAccountsPage.classList.contains("hidden") ||
                 !inventoryPage.classList.contains("hidden") ||
                 !plannedPaymentsPage.classList.contains("hidden")
             ) {
@@ -2541,19 +2541,9 @@
             await renderApp();
         }
 
-        // v227: settings for the app-wide Default Payment/Receive Account — these used to live in
-        // a card at the top of the Accounts page; moved here since they're app-wide preferences,
-        // not something specific to browsing accounts. Re-populates both pickers from the
-        // accounts list each time the page opens.
-        // v394: own full page now, see navigateToDashboardWidgetsPage() above for why.
-        async function navigateToDefaultAccountsPage() {
-            workspaceScrollY = window.scrollY;
-            showPage("page-defaultaccounts");
-            window.scrollTo(0, 0);
-            pushVirtualState("defaultaccounts");
-            await populateDefaultPaymentAccountSelect();
-            await populateDefaultReceiveAccountSelect();
-        }
+        // v398: Default Payment/Receive Account settings moved into page-categories (as a
+        // "Default Accounts" block above "Default Category") — grouping it with the other
+        // add-transaction defaults instead of its own separate page. See renderCategoriesPage().
 
         // v224: persists the chosen Dashboard widget order and re-renders so it takes effect
         // immediately, even though the Dashboard itself isn't the visible page right now.
@@ -3044,7 +3034,7 @@
         // --- SPA NAVIGATION PIPELINE ---
         // Every top-level page div's id — used by showPage() to hide all but the target,
         // so adding a new page never risks leaving a stale one visible underneath.
-        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-backup", "page-autolock", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-companion", "page-dashboardwidgets", "page-defaultaccounts", "page-members", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
+        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-backup", "page-autolock", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-companion", "page-dashboardwidgets", "page-members", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
         function showPage(id) {
             APP_PAGE_IDS.forEach(p => {
                 const el = document.getElementById(p);
@@ -9664,6 +9654,10 @@
         // indented directly beneath, followed by any remaining Main Categories that have none.
         async function renderCategoriesPage() {
             populateDefaultCategorySelects();
+            // v398: Default Payment/Receive Account moved here from its own page — see comment
+            // on populateDefaultPaymentAccountSelect()/populateDefaultReceiveAccountSelect().
+            await populateDefaultPaymentAccountSelect();
+            await populateDefaultReceiveAccountSelect();
 
             // v72: the 📊 toggle flips excludeFromSavings in place — solid + labeled when a
             // category is currently excluded, dim when it counts normally in the report.
@@ -19342,7 +19336,6 @@
             navigateToBgThemePage: () => navigateToBgThemePage(),
             navigateToDashboardWidgetsPage: () => navigateToDashboardWidgetsPage(),
             navigateToMonthlyTrendPage: () => navigateToMonthlyTrendPage(),
-            navigateToDefaultAccountsPage: () => navigateToDefaultAccountsPage(),
             selectBgTheme: (el) => selectBgTheme(el),
             navigateToNetWorthCardStylePage: () => navigateToNetWorthCardStylePage(),
             selectNetWorthCardStyle: (el) => selectNetWorthCardStyle(el),
