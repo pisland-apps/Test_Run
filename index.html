@@ -2220,16 +2220,27 @@
             border-color: #c7d2fe;
         }
         /* v406: highlights whichever rail icon matches the Settings page currently on screen
-           (see updateSettingsIconRailActiveState() in ledger.js, called from showPage()) — a
-           tinted background plus a --primary ring, same accent color .nav-view-toggle-btn.active
-           and .text-btn.active-filter-btn already use elsewhere, applied here as a ring instead
-           of a solid fill so the emoji itself stays legible. Never applied on the Setting hub
-           page (page-datasecurity) itself, since no single icon represents "you are here" on the
-           page the rail's own icons branch out from. */
+           (see updateSettingsIconRailActiveState() in ledger.js, called from showPage()). v407:
+           restyled to match .sidebar-item.active's own look (tinted --active-bg background plus
+           a --primary accent bar) instead of the earlier ring treatment, per request, so "you are
+           here" reads the same way in both places. The bar sits inset far enough (14px, matching
+           this tile's own 14px corner radius) to clear the rounded corners instead of poking past
+           them the way copying .sidebar-item.active::before's 6px inset verbatim would have —
+           that value only works there because sidebar rows have square corners. Never applied on
+           the Setting hub page (page-datasecurity) itself, since no single icon represents "you
+           are here" on the page the rail's own icons branch out from. */
         .settings-icon-btn.active {
-            border-color: var(--primary);
-            background: var(--primary-chip-bg);
-            box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 35%, transparent), var(--card-shadow);
+            position: relative;
+            background: var(--active-bg);
+            border-color: var(--active-border);
+        }
+        .settings-icon-btn.active::before {
+            content: "";
+            position: absolute;
+            left: 0; top: 14px; bottom: 14px;
+            width: 3px;
+            border-radius: 0 4px 4px 0;
+            background: var(--primary);
         }
         .settings-icon-emoji { font-size: 1.7rem; line-height: 1; }
         /* Reset App Data — kept visually distinct (red icon) same as it was in the old list. */
