@@ -4315,8 +4315,10 @@
         <div class="settings-split">
         <div id="settingsIconGrid" class="settings-icon-grid">
             <button class="settings-icon-btn" title="Background Theme" aria-label="Background Theme" data-click="navigateToBgThemePage"><span class="settings-icon-emoji">🎨</span></button>
-            <button class="settings-icon-btn" title="Net Worth Card Style" aria-label="Net Worth Card Style" data-click="navigateToNetWorthCardStylePage"><span class="settings-icon-emoji">🎴</span></button>
-            <button class="settings-icon-btn" title="Companion" aria-label="Companion" data-click="navigateToCompanionPage"><span class="settings-icon-emoji">🐾</span></button>
+            <!-- v403: Net Worth Card Style + Companion merged into one page/icon — both only
+                 ever customized the Portfolio Net Worth card, so they no longer need separate
+                 rail slots. -->
+            <button class="settings-icon-btn" title="Net Worth Card" aria-label="Net Worth Card" data-click="navigateToNetWorthCardStylePage"><span class="settings-icon-emoji">🎴</span></button>
             <button class="settings-icon-btn" title="Dashboard Widgets" aria-label="Dashboard Widgets" data-click="navigateToDashboardWidgetsPage"><span class="settings-icon-emoji">📊</span></button>
             <button class="settings-icon-btn" title="Currency Setting" aria-label="Currency Setting" data-click="openCurrencyConfig"><span class="settings-icon-emoji">💱</span></button>
             <button class="settings-icon-btn" title="Manage Categories" aria-label="Manage Categories" data-click="navigateToCategoriesPage"><span class="settings-icon-emoji">🏷️</span></button>
@@ -4431,63 +4433,55 @@
         </div>
     </div>
 
-    <!-- ================= PAGE: NET WORTH CARD STYLE (v326; split into own page v394) ================= -->
+    <!-- ================= PAGE: NET WORTH CARD (v326 Net Worth Card Style; v341 Companion;
+         split into own pages v394; Companion merged with Monthly Trend Mascot v397; v403 merged
+         Net Worth Card Style + Companion into this one page — both are scoped to customizing the
+         Portfolio Net Worth card specifically (unlike Background Theme, which recolors the whole
+         app and stays its own page). Each concern below keeps its own .widget-setting-card
+         section, same pattern as page-dashboardwidgets/page-datasecurity's multi-section pages,
+         so the two don't read as one undifferentiated list. -->
     <div id="page-networthcardstyle" class="page hidden">
         <div class="nav-header">
             <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
             <div>
-                <h3 style="font-weight:800; font-size:1.2rem;">Net Worth Card Style</h3>
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Portfolio Net Worth card background</p>
+                <h3 style="font-weight:800; font-size:1.2rem;">Net Worth Card</h3>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Card style &amp; companion mascot</p>
             </div>
         </div>
         <div class="settings-split">
         <div class="settings-icon-rail-slot"></div>
-        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:10px;">
-            <!-- v326: separate from Background Theme above (that one recolors the page/chrome;
-                 this only recolors the Dashboard's Portfolio Net Worth hero card, see
-                 .net-worth-hero-card / --net-worth-card-bg). -->
-            <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Changes only the background of the Dashboard's Portfolio Net Worth card. "Classic" adapts to whichever Background Theme is active; the others are fixed gradients.</p>
-            <div class="color-swatch-grid" id="netWorthCardStyleSwatchGrid"></div>
-        </div>
-        </div>
-    </div>
-
-    <!-- ================= PAGE: COMPANION (v341; split into own page v394) ================= -->
-    <!-- ================= PAGE: COMPANION (v341; split into own page v394; merged with Monthly
-         Trend Mascot v397 — both pickers draw from the same "My Photos" library, so showing that
-         library twice on two separate pages was pure duplication. A small segmented toggle now
-         picks which spot (Net Worth card / Monthly Trend title) the one grid below applies to. -->
-    <div id="page-companion" class="page hidden">
-        <div class="nav-header">
-            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
-            <div>
-                <h3 style="font-weight:800; font-size:1.2rem;">Companion</h3>
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Mascot for the Net Worth card &amp; Monthly Trend title</p>
+        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:14px; padding-bottom:24px;">
+            <!-- v326: recolors only the Dashboard's Portfolio Net Worth hero card, see
+                 .net-worth-hero-card / --net-worth-card-bg — independent of Background Theme,
+                 which recolors the page/chrome instead and stays on its own page. -->
+            <div class="widget-setting-card">
+                <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">CARD STYLE</p>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin:0 0 10px;">Changes only the background of the Dashboard's Portfolio Net Worth card. "Classic" adapts to whichever Background Theme is active; the others are fixed gradients.</p>
+                <div class="color-swatch-grid" id="netWorthCardStyleSwatchGrid"></div>
             </div>
-        </div>
-        <div class="settings-split">
-        <div class="settings-icon-rail-slot"></div>
-        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:10px;">
             <!-- v341: a small optional mascot shown in the Portfolio Net Worth card's right-hand
                  gutter (see .net-worth-companion / COMPANIONS in ledger.js). Original line-art,
                  not tied to any Background Theme — same translucent-white treatment as the card's
-                 Financial Assets/Real Estate chips, so it reads correctly against every Net Worth
-                 Card Style gradient without needing separate light/dark artwork. v382 added an
+                 Financial Assets/Real Estate chips, so it reads correctly against every Card
+                 Style gradient without needing separate light/dark artwork. v382 added an
                  independent pick for the Monthly Trend title's own mascot (defaulting to "Match
-                 Companion", mirroring this one) — v397 merged both pickers' UI into this one page
-                 since they share the exact same photo library; selectMascotTarget() below just
-                 switches which of the two saved settings the swatch grid is currently editing. -->
-            <div class="util-row" id="mascotTargetToggle" style="margin-top:0;">
-                <button type="button" class="btn-util active" data-click="selectMascotTarget" data-target="companion">Net Worth Card</button>
-                <button type="button" class="btn-util" data-click="selectMascotTarget" data-target="trend">Monthly Trend</button>
+                 Companion", mirroring this one) — v397 merged both pickers' UI into one grid;
+                 selectMascotTarget() below just switches which of the two saved settings the
+                 grid is currently editing. -->
+            <div class="widget-setting-card">
+                <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">COMPANION</p>
+                <div class="util-row" id="mascotTargetToggle" style="margin-top:0;">
+                    <button type="button" class="btn-util active" data-click="selectMascotTarget" data-target="companion">Net Worth Card</button>
+                    <button type="button" class="btn-util" data-click="selectMascotTarget" data-target="trend">Monthly Trend</button>
+                </div>
+                <p id="mascotTargetHint" style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin:8px 0 0;">A small mascot next to your Portfolio Net Worth figure. Save up to 20 of your own photos below and switch between them any time — each preview shows how it actually looks on the card. Tap the "×" on a photo to remove it.</p>
+                <div id="companionSwatchGrid" style="margin-top:8px;"></div>
+                <!-- v343: hidden file input behind the "My Photos" group's "＋ Add" tile — same
+                     accept="image/*" pattern the transaction-attachment inputs use. No `capture`
+                     attribute (unlike the receipt camera input) since a companion photo is just
+                     as likely to come from the gallery as the camera. -->
+                <input type="file" id="companionCustomImageInput" accept="image/*" style="display:none;" data-change="handleCompanionCustomImageSelected">
             </div>
-            <p id="mascotTargetHint" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">A small mascot next to your Portfolio Net Worth figure. Save up to 20 of your own photos below and switch between them any time — each preview shows how it actually looks on the card. Tap the "×" on a photo to remove it.</p>
-            <div id="companionSwatchGrid"></div>
-            <!-- v343: hidden file input behind the "My Photos" group's "＋ Add" tile — same
-                 accept="image/*" pattern the transaction-attachment inputs use. No `capture`
-                 attribute (unlike the receipt camera input) since a companion photo is just
-                 as likely to come from the gallery as the camera. -->
-            <input type="file" id="companionCustomImageInput" accept="image/*" style="display:none;" data-change="handleCompanionCustomImageSelected">
         </div>
         </div>
     </div>

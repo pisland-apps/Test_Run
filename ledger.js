@@ -10,8 +10,8 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v402";
-        const APP_VERSION_DATE = "2026-09-16";
+        const APP_VERSION = "v403";
+        const APP_VERSION_DATE = "2026-09-17";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
         // inconsistently across platforms/fonts). Used by the static Amount field button
@@ -2003,9 +2003,10 @@
             // v402: Manage Members/Backup & Restore/Auto-Lock's own pages were folded into
             // page-datasecurity itself (embedded inline, not just linked to) — no separate
             // page-ids for those either now.
+            // v403: Companion's own page was folded into page-networthcardstyle (both only ever
+            // customized the Portfolio Net Worth card) — no separate page-id for it either now.
             const bgThemePage = document.getElementById("page-bgtheme");
             const netWorthCardStylePage = document.getElementById("page-networthcardstyle");
-            const companionPage = document.getElementById("page-companion");
             const dashboardWidgetsPage = document.getElementById("page-dashboardwidgets");
             const memberPage = document.getElementById("page-member");
             const fundActivityPage = document.getElementById("page-fundactivity");
@@ -2051,7 +2052,6 @@
                 !dataSecurityPage.classList.contains("hidden") ||
                 !bgThemePage.classList.contains("hidden") ||
                 !netWorthCardStylePage.classList.contains("hidden") ||
-                !companionPage.classList.contains("hidden") ||
                 !dashboardWidgetsPage.classList.contains("hidden") ||
                 !inventoryPage.classList.contains("hidden") ||
                 !plannedPaymentsPage.classList.contains("hidden")
@@ -3019,7 +3019,7 @@
         // --- SPA NAVIGATION PIPELINE ---
         // Every top-level page div's id — used by showPage() to hide all but the target,
         // so adding a new page never risks leaving a stale one visible underneath.
-        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-companion", "page-dashboardwidgets", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
+        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-dashboardwidgets", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
         function showPage(id) {
             APP_PAGE_IDS.forEach(p => {
                 const el = document.getElementById(p);
@@ -8050,13 +8050,19 @@
             applyNetWorthCardStyle(el.dataset.styleId);
             document.querySelectorAll("#netWorthCardStyleSwatchGrid .color-swatch").forEach(s => s.classList.toggle("selected", s.dataset.styleId === el.dataset.styleId));
         }
-        // v394: own full page now (page-networthcardstyle).
-        function navigateToNetWorthCardStylePage() {
+        // v394: own full page now (page-networthcardstyle). v403: merged with what used to be
+        // the separate Companion page — `mascotTarget` ("companion" or "trend", same as
+        // navigateToCompanionPage() used to take) picks which of the two Companion settings the
+        // page's mascot picker opens on; omit it (e.g. from the rail icon, which has no opinion)
+        // to leave the Companion section on whichever tab it last showed.
+        function navigateToNetWorthCardStylePage(mascotTarget) {
             workspaceScrollY = window.scrollY;
             showPage("page-networthcardstyle");
             window.scrollTo(0, 0);
             pushVirtualState("networthcardstyle");
             buildNetWorthCardStyleSwatchGrid();
+            applyMascotTargetUI(mascotTarget || mascotSettingsTarget);
+            buildCompanionSwatchGrid();
         }
 
         // --- v341: Companion (Setting page) --------------------------------------------------
@@ -8373,13 +8379,12 @@
         // v394: own full page now (page-companion); v397: page merged with what used to be the
         // separate Monthly Trend Mascot page — `target` ("companion" or "trend") picks which of
         // the two settings the merged toggle/grid opens on, defaulting to the Net Worth card one.
-        async function navigateToCompanionPage(target = "companion") {
-            workspaceScrollY = window.scrollY;
-            showPage("page-companion");
-            window.scrollTo(0, 0);
-            pushVirtualState("companion");
-            applyMascotTargetUI(target);
-            await buildCompanionSwatchGrid();
+        // v403: page-companion itself was folded into page-networthcardstyle — this now just
+        // forwards there with the same target argument, kept as a thin wrapper so
+        // toggleCompanionSettingsFromDashboard()/toggleMonthlyTrendMascotSettingsFromDashboard()
+        // below didn't need to change.
+        function navigateToCompanionPage(target = "companion") {
+            navigateToNetWorthCardStylePage(target);
         }
         // v382: sibling picker to selectCompanion/buildCompanionSwatchGrid above, for the
         // independent Monthly Trend Mascot setting — same shape, writing to
@@ -19285,9 +19290,12 @@
             navigateToDashboardWidgetsPage: () => navigateToDashboardWidgetsPage(),
             navigateToMonthlyTrendPage: () => navigateToMonthlyTrendPage(),
             selectBgTheme: (el) => selectBgTheme(el),
+            // v403: navigateToCompanionPage() has no data-click of its own anymore (Companion's
+            // rail icon/page merged into Net Worth Card's) — it's still called directly from JS
+            // by toggleCompanionSettingsFromDashboard()/toggleMonthlyTrendMascotSettingsFromDashboard()
+            // below, so no dispatch entry is needed here.
             navigateToNetWorthCardStylePage: () => navigateToNetWorthCardStylePage(),
             selectNetWorthCardStyle: (el) => selectNetWorthCardStyle(el),
-            navigateToCompanionPage: () => navigateToCompanionPage(),
             selectMascotTarget: (el) => selectMascotTarget(el),
             toggleCompanionSettingsFromDashboard: () => toggleCompanionSettingsFromDashboard(),
             selectCompanion: (el) => selectCompanion(el),
