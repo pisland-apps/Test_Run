@@ -1988,6 +1988,17 @@
         }
         .form-row { margin-bottom: 12px; }
         .form-row-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+        /* v408: grid items default to min-width:auto, which — combined with white-space:nowrap on
+           .account-picker-btn span:first-child's ellipsis truncation — let long text (e.g. a long
+           account name) force the 1fr track wider than intended, overflowing the row/card instead
+           of actually eliding. min-width:0 makes every .form-row-inline column respect its track
+           width so text-overflow:ellipsis can do its job. */
+        .form-row-inline > div { min-width: 0; }
+        /* v408: stacked variant — same row/label styling as .form-row-inline but single column, for
+           rows whose values can be long enough that even ellipsis truncation would hide the useful
+           part of the name (e.g. Default Payment/Receive Account) and full-width room reads better
+           than a squeezed two-column layout. */
+        .form-row-stack { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 12px; }
         label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
         /* Icon-beside-field rows (Account / Date / Description / Notes on the transaction form) —
            an icon sits to the left of the field itself instead of as text inside a label above it,
@@ -2187,6 +2198,7 @@
                runs, or on a page that opts out for some reason) this has no visible effect since
                the box just grows to fit its content, same as before. */
             overflow-y: auto;
+            overflow-x: hidden; /* v409: same hidden-auto-axis fix as .settings-page-content below */
         }
         .settings-icon-btn {
             display: flex;
@@ -2213,7 +2225,18 @@
            in ledger.js bounds both to whatever viewport space is actually left below the
            nav-header (recalculated on navigation and on resize), so each one scrolls on its own
            within that space instead. */
-        .settings-page-content { flex: 1; min-width: 0; overflow-y: auto; }
+        /* v409: only overflow-y was ever set here, but per spec an axis left at its `visible`
+           default gets silently computed to `auto` (never stays `visible`) whenever the OTHER
+           axis is non-visible — so this container was secretly horizontally scrollable too. Every
+           settings sub-page (Categories, Templates, Accounts, etc.) shares this one scroll
+           container for its whole row list, so if anything nudges that hidden horizontal
+           scrollbar sideways even once — a native "scroll focused/tapped row into view", or a
+           `.config-item` briefly forced wider than the viewport by one long unbreakable category/
+           template name — the whole container stays scrolled right, cropping every row's left
+           edge on every page that reuses it, not just the one row that caused it. overflow-x:
+           hidden removes that hidden scroll axis outright; only intentional vertical scrolling
+           remains. */
+        .settings-page-content { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; }
         .settings-icon-btn:hover {
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             transform: translateY(-1px);
@@ -2395,6 +2418,27 @@
             align-items: center;
             gap: 4px;
         }
+        /* v410: on a .config-item row (Categories, Templates, …) the label
+           (.category-display-badge) and the action-button group sit side by side with no
+           flex-shrink control, so when the row is too narrow to fit both at full size,
+           flexbox's default shrink-everything-proportionally behavior could shrink the BUTTON
+           GROUP itself — its buttons don't wrap, so the group's overflow (typically the last
+           button, e.g. 🗑) got silently clipped by the row's overflow:hidden instead of ever
+           reaching a wrapped line. The label's text already wraps fine on its own (see multi-line
+           category names), so it should absorb 100% of any shrinking; the action buttons should
+           never shrink at all. */
+        .config-item > .category-display-badge { min-width: 0; flex: 1 1 auto; }
+        .config-item > .category-display-badge ~ div { flex-shrink: 0; margin-left: auto; }
+        /* v411: min-width:0 above stopped the button group from ever being clipped, but on a row
+           whose label is itself long/multi-part (e.g. a Template's name + amount + account line,
+           or a Category with its 🚫 "Not in Report" badge) that just pushed the squeeze onto the
+           label instead — text wrapped down to a few characters per line, or overlapped the
+           buttons, well before the row was actually out of room. flex-wrap here lets a label that
+           can't fit *anything* of the button group alongside it drop the button group to a second
+           line of its own (full label width to wrap normally on line one; margin-left:auto above
+           keeps the now-solo button group right-aligned, matching where it sits when both fit on
+           one line). Short labels are unaffected — they still share the single line as before. */
+        .config-item:has(> .category-display-badge) { flex-wrap: wrap; }
 
         /* ===== App Lock (PBKDF2 + AES-GCM) ===== */
         #lockOverlay {
@@ -3491,7 +3535,7 @@
             <div class="section-header" style="margin-top:0;">
                 <span class="section-title">Default Accounts</span>
             </div>
-            <div class="form-row-inline" style="margin-bottom:0;">
+            <div class="form-row-stack" style="margin-bottom:0;">
                 <div>
                     <label>Default Payment Account</label>
                     <button type="button" id="defaultPaymentAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultPaymentAccountSelect" data-title="Default Payment Account">
@@ -4808,10 +4852,15 @@
                             <select id="newAccCcDueDay" class="form-input"></select>
                         </div>
                     </div>
-                    <div class="form-row" style="margin-bottom:0;">
+                    <div class="form-row">
                         <label>Default Payment Account</label>
                         <select id="newAccCcPaymentAccount" class="form-input"></select>
                         <p style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;">Which account the 💳 Pay button defaults to paying from — you can still change it per payment.</p>
+                    </div>
+                    <div class="form-row" style="margin-bottom:0;">
+                        <label>🔗 Shares Credit Limit With</label>
+                        <select id="newAccCcShareLimitWith" class="form-input"></select>
+                        <p style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;">Pick another card from the same bank if they draw from one combined credit facility. Limit/Available will then be shown as the shared total across every card in the group, and this card's own Credit Limit field above is ignored.</p>
                     </div>
                 </div>
 
@@ -5953,18 +6002,19 @@
                 <input type="text" id="fundName" placeholder="e.g., Global Equity Fund" required>
             </div>
             <div class="form-row">
-                <label>Fund Code (optional)</label>
+                <label id="fundCodeLabel">Fund Code (optional)</label>
                 <input type="text" id="fundCode" placeholder="e.g., GEF001">
             </div>
             <div class="form-row-inline">
                 <div>
                     <label>Category</label>
-                    <select id="fundCategory" class="form-input">
+                    <select id="fundCategory" class="form-input" data-change="handleFundCategoryChange">
                         <option value="Equity">Equity</option>
                         <option value="Bond">Bond</option>
                         <option value="Balanced">Balanced</option>
                         <option value="Money Market">Money Market</option>
                         <option value="REIT">REIT</option>
+                        <option value="Gold">🪙 Gold</option>
                         <option value="Other">Other</option>
                     </select>
                 </div>
@@ -5978,8 +6028,9 @@
                 <div id="fundOwnerCheckboxes" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
             </div>
             <div class="form-row">
-                <label>Current NAV</label>
+                <label id="fundNavLabel">Current NAV</label>
                 <input type="number" id="fundNav" step="0.0001" value="1.0000" required>
+                <span id="fundNavStaleness" style="display:none; font-size:0.72rem; color:var(--text-muted); font-weight:600;"></span>
             </div>
             <button type="button" data-click="handleSaveFund" class="submit-btn">Save Fund</button>
             <button type="button" id="fundDeleteBtn" data-click="handleDeleteFund" class="submit-btn" style="display:none; background:var(--expense-color); margin-top:8px;">🗑 Delete Fund</button>
@@ -6173,8 +6224,8 @@
                 </div>
             </div>
             <div class="form-row-inline" id="fundTxUnitsRow">
-                <div><label>Units</label><input type="number" id="fundTxUnits" step="0.0001" placeholder="0.00" data-input="recalcFundTxTotal"></div>
-                <div><label>Price per Unit</label><input type="number" id="fundTxPrice" step="0.0001" placeholder="0.00" data-input="recalcFundTxTotal"></div>
+                <div><label id="fundTxUnitsLabel">Units</label><input type="number" id="fundTxUnits" step="0.0001" placeholder="0.00" data-input="recalcFundTxTotal"></div>
+                <div><label id="fundTxPriceLabel">Price per Unit</label><input type="number" id="fundTxPrice" step="0.0001" placeholder="0.00" data-input="recalcFundTxTotal"></div>
             </div>
             <div class="form-row">
                 <label>Total Amount</label>

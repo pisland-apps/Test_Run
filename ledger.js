@@ -10,8 +10,8 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v407";
-        const APP_VERSION_DATE = "2026-09-17";
+        const APP_VERSION = "v414";
+        const APP_VERSION_DATE = "2026-09-18";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
         // inconsistently across platforms/fonts). Used by the static Amount field button
@@ -623,6 +623,16 @@
         // instead everywhere "today" means "today where the user is sitting".
         function todayLocalStr() {
             return localDateStr(new Date());
+        }
+
+        // Whole-day difference between a stored YYYY-MM-DD date string and today (local calendar
+        // day, see todayLocalStr() above) — used for the Gold holding "priced X days ago"
+        // staleness badge (v414). Returns null when there's nothing stored yet.
+        function daysSinceLocalDateStr(dateStr) {
+            if (!dateStr) return null;
+            const then = new Date(dateStr + "T00:00:00");
+            const now = new Date(todayLocalStr() + "T00:00:00");
+            return Math.round((now - then) / 86400000);
         }
 
         /* ================= APP LOCK: PBKDF2 + AES-GCM (Web Crypto) ================= */
@@ -5469,6 +5479,50 @@
             sel.value = (preselectId && candidates.some(a => a.id === preselectId)) ? preselectId : "";
         }
 
+        // Credit Card "Shares Credit Limit With" (v412): same exclude-self pattern as
+        // populateCcPaymentAccountSelect, but restricted to other Credit Card accounts only —
+        // sharing a limit only makes sense between cards, not with a normal bank account.
+        async function populateCcShareLimitSelect(preselectId) {
+            const sel = document.getElementById("newAccCcShareLimitWith");
+            const excludeId = document.getElementById("editAccountId").value;
+            const accounts = await readAllDB(STORES.ACCOUNTS);
+            const candidates = accounts
+                .filter(a => a.type === "creditcard" && a.id !== excludeId)
+                .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+            sel.innerHTML = `<option value="">(None — independent limit)</option>` + candidates.map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(accountOptionLabel(a, accounts))}</option>`).join("");
+            sel.value = (preselectId && candidates.some(a => a.id === preselectId)) ? preselectId : "";
+        }
+
+        // Resolves whichever card the user picked in "Shares Credit Limit With" down to the
+        // actual group anchor — if that card is itself already sharing with a third card, follow
+        // that one level instead of creating a chain (A→B→C). A visited-set guards against any
+        // legacy/corrupt data that somehow formed a cycle. Anchor = the card whose own
+        // creditLimit is treated as the group's combined total.
+        function resolveCreditLimitAnchorId(pickedId, accounts) {
+            if (!pickedId) return null;
+            const visited = new Set();
+            let currentId = pickedId;
+            while (!visited.has(currentId)) {
+                visited.add(currentId);
+                const acc = accounts.find(a => a.id === currentId);
+                if (!acc || !acc.sharedLimitAccountId) return currentId;
+                currentId = acc.sharedLimitAccountId;
+            }
+            return pickedId; // cycle detected in stored data — fall back to the raw pick rather than looping
+        }
+
+        // Given any credit card account, returns every account in its shared-limit group
+        // (anchor first, then every other card pointing at that anchor) — [account] alone when
+        // it isn't part of a group. Used by accountExtraInfoLine to compute a combined
+        // Limit/Available figure that reads the same on every member card.
+        function getCreditLimitGroupMembers(a, accounts) {
+            if (a.type !== "creditcard") return [a];
+            const anchorId = a.sharedLimitAccountId ? resolveCreditLimitAnchorId(a.sharedLimitAccountId, accounts) : a.id;
+            const anchor = accounts.find(x => x.id === anchorId) || a;
+            const members = accounts.filter(x => x.type === "creditcard" && x.id !== anchor.id && resolveCreditLimitAnchorId(x.sharedLimitAccountId, accounts) === anchor.id);
+            return [anchor, ...members];
+        }
+
         function setAccountTypeUI(type) {
             document.getElementById("newAccType").value = type;
             const normalBtn = document.getElementById("accTypeBtnNormal");
@@ -5522,6 +5576,7 @@
                 populateDaySelect(document.getElementById("newAccCcStatementDay"));
                 populateDaySelect(document.getElementById("newAccCcDueDay"));
                 populateCcPaymentAccountSelect();
+                populateCcShareLimitSelect();
             } else if (type === "multi") {
                 multiBtn.style.background = "var(--transfer-color)"; multiBtn.style.color = "white";
                 hint.textContent = "Holds separate currency balances under one account name — e.g. \"Bank A\" with its own SGD and MYR balances side by side, never mixed together.";
@@ -5817,6 +5872,13 @@
             if(!name) { alert("Please enter an account name."); return; }
 
             const group = document.getElementById("newAccGroup").value || DEFAULT_ACCOUNT_GROUP;
+            // Credit Card "Shares Credit Limit With" (v412): flatten whatever the user picked
+            // down to the actual group anchor (see resolveCreditLimitAnchorId's comment) using
+            // the accounts as they stand right now, so a chain never gets written to disk even
+            // transiently.
+            const sharedLimitPickedId = (type === "creditcard") ? (document.getElementById("newAccCcShareLimitWith").value || null) : null;
+            const accountsForShareResolve = sharedLimitPickedId ? await readAllDB(STORES.ACCOUNTS) : [];
+            const sharedLimitAccountId = sharedLimitPickedId ? resolveCreditLimitAnchorId(sharedLimitPickedId, accountsForShareResolve) : null;
             const record = {
                 id, name, type, group,
                 // Account No. / Ref (v130): purely informational free-text, independent of
@@ -5851,10 +5913,17 @@
                 // #ccWrap for why none of this affects balance/due-amount math. Cleared out (same
                 // as Real Estate/Bank Loan's fields above) when the account isn't a Credit Card,
                 // so re-typing an account away from Credit Card doesn't leave stale values behind.
-                creditLimit: (type === "creditcard") ? (parseFloat(document.getElementById("newAccCcLimit").value) || 0) : 0,
+                // v412: when this card shares its limit with another (sharedLimitAccountId set),
+                // its own Credit Limit field is meaningless — the anchor card's creditLimit is
+                // the group's combined total (see getCreditLimitGroupMembers). Force it to 0 here
+                // (bug class #2: a hidden-but-not-cleared field silently surviving) rather than
+                // leaving whatever stale number was last typed into the input sitting unused in
+                // the record.
+                creditLimit: (type === "creditcard" && !sharedLimitAccountId) ? (parseFloat(document.getElementById("newAccCcLimit").value) || 0) : 0,
                 statementDay: (type === "creditcard") ? (parseInt(document.getElementById("newAccCcStatementDay").value, 10) || null) : null,
                 paymentDueDay: (type === "creditcard") ? (parseInt(document.getElementById("newAccCcDueDay").value, 10) || null) : null,
                 defaultPaymentAccountId: (type === "creditcard") ? (document.getElementById("newAccCcPaymentAccount").value || null) : null,
+                sharedLimitAccountId: sharedLimitAccountId,
                 memberIds: getCheckedAccountMemberIds()
             };
 
@@ -6259,7 +6328,7 @@
                 const acctRefLine = a.accountRef
                     ? `<div class="account-card-refline">${escapeHtml(a.accountRef)}</div>`
                     : "";
-                const extraInfoLine = accountExtraInfoLine(a, nativeBalances, false);
+                const extraInfoLine = accountExtraInfoLine(a, nativeBalances, false, accounts);
 
                 // Credit Card (v127): "Amount due" line + 💳 Pay button, both only shown when
                 // there's actually something owed (a card paid off in full, or never used, has
@@ -6475,6 +6544,7 @@
                 populateDaySelect(document.getElementById("newAccCcStatementDay"), account.statementDay);
                 populateDaySelect(document.getElementById("newAccCcDueDay"), account.paymentDueDay);
                 await populateCcPaymentAccountSelect(account.defaultPaymentAccountId || "");
+                await populateCcShareLimitSelect(account.sharedLimitAccountId || "");
             }
             renderAccountMemberCheckboxes(Array.isArray(account.memberIds) ? account.memberIds : []);
 
@@ -6574,6 +6644,64 @@
             return all.filter(f => f.accountId === accountId);
         }
 
+        // ================= GOLD holdings (v414) =================
+        // A gold holding is just a FUND record with category "Gold" — it rides every existing
+        // Unit Trust mechanic for free (balance calc, Net Worth rollup, Activity page, Portfolio
+        // Report, backup/restore) since none of that code branches on category. "units" is reused
+        // to mean grams, "currentNav" is reused to mean today's manually-entered bank buy / recovery
+        // rate (RM per gram) — see the chat discussion this was built from for the buy-price vs
+        // sell-price rationale. Only two things are genuinely gold-specific:
+        //   1. New gold holdings get an id prefixed "gold_" instead of "fund_" (handleSaveFund) —
+        //      pure namespacing so a future chart/cleanup pass can tell gold price history apart
+        //      from unit-trust NAV history at a glance, without adding a whole new field.
+        //   2. Gold transactions can't be edited in place (only Buy/Sell make sense, and editing
+        //      the price/grams of a real bank trade after the fact invites quiet mistakes) — see
+        //      the tx.fundId branch inside openTransactionForm, which routes gold rows to the
+        //      existing delete-and-relog flow (handleFundTxRowTap) instead of openEditFundTxModal.
+        function isGoldFund(fund) {
+            return !!fund && fund.category === "Gold";
+        }
+
+        // Small "priced X days ago" badge — the core defence against acting on a stale manually-
+        // entered gold price (a live FX-style auto-fetch isn't in scope for v414; see chat). Blank
+        // when there's no price date yet (freshly created holding) or it was priced today.
+        function goldStalenessBadgeHTML(fund) {
+            if (!isGoldFund(fund)) return "";
+            const days = daysSinceLocalDateStr(fund.priceUpdatedAt);
+            if (days === null || days <= 0) return "";
+            const color = days >= 2 ? "var(--expense-color)" : "var(--text-muted)";
+            return `<span style="font-size:0.66rem; color:${color}; font-weight:700;"> · priced ${days}d ago</span>`;
+        }
+
+        // Only Buy/Sell make sense for a gold holding (no dividends/employer contributions) —
+        // this rebuilds the Transaction Type <select> to match whichever fund is currently chosen,
+        // preserving the selection where possible. Called whenever the fund-transaction modal
+        // opens and whenever the Fund dropdown inside it changes.
+        const FUND_TX_TYPE_OPTIONS_ALL = [
+            ["buy", "Buy"], ["sell", "Sell"],
+            ["dividend_reinvest", "Dividend (Reinvest)"],
+            ["dividend_payout", "Dividend (Cheque Payout)"],
+            ["contribution", "Contribution"]
+        ];
+        const FUND_TX_TYPE_OPTIONS_GOLD = [["buy", "Buy"], ["sell", "Sell"]];
+        async function handleFundTxFundChange() {
+            const fundId = document.getElementById("fundTxFundId").value;
+            const funds = await readAllDB(STORES.FUNDS);
+            const fund = funds.find(f => f.id === fundId);
+            const gold = isGoldFund(fund);
+
+            const typeSel = document.getElementById("fundTxType");
+            const prevType = typeSel.value;
+            const options = gold ? FUND_TX_TYPE_OPTIONS_GOLD : FUND_TX_TYPE_OPTIONS_ALL;
+            typeSel.innerHTML = options.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+            typeSel.value = options.some(([v]) => v === prevType) ? prevType : "buy";
+
+            document.getElementById("fundTxUnitsLabel").textContent = gold ? "Grams" : "Units";
+            document.getElementById("fundTxPriceLabel").textContent = gold ? "Price per Gram" : "Price per Unit";
+
+            handleFundTxTypeChange();
+        }
+
         // Fund's own Activity page (v48) — same idea as an account's Activity page
         // (navigateToLedgerPage), but scoped to just this one fund's transactions, so a Unit
         // Trust account holding several funds doesn't jumble all of them into one long list.
@@ -6643,10 +6771,11 @@
             document.getElementById("fundActivityBalanceValue").innerHTML = formatBalanceHTML(value, fund.currency);
 
             const ownerLabel = accountOwnerNamesText({ memberIds: fund.ownerMemberIds });
+            const gold = isGoldFund(fund);
             document.getElementById("fundActivityMeta").innerHTML = `
                 <span>${escapeHtml(fund.category || "")}${fund.code ? " · " + escapeHtml(fund.code) : ""}</span>
                 <span style="color:var(--primary); font-weight:700;">${escapeHtml(ownerLabel)}</span>
-                <span>${(fund.units || 0).toFixed(4)} units @ ${formatCurrency(fund.currentNav || 0, fund.currency)} NAV</span>
+                <span>${(fund.units || 0).toFixed(4)} ${gold ? "g" : "units"} @ ${formatCurrency(fund.currentNav || 0, fund.currency)}${gold ? "/g" : " NAV"}${goldStalenessBadgeHTML(fund)}</span>
             `;
 
             const html = fundTxs.map(t => {
@@ -6839,6 +6968,18 @@
             await refreshCurrencyActivityPageIfVisible();
         }
 
+        // Relabels the Add/Edit Fund form for Gold vs a regular unit-trust fund — the same DB
+        // fields are reused (code→purity/source, currentNav→today's RM/gram rate) so there's no
+        // new store or DB_VERSION bump, just different wording. Called on category change and once
+        // when the form first opens (openAddFundModal/editFund) so it starts in sync.
+        function handleFundCategoryChange() {
+            const gold = document.getElementById("fundCategory").value === "Gold";
+            document.getElementById("fundCodeLabel").textContent = gold ? "Purity / Source (e.g. 999, 916, Maybank GIA)" : "Fund Code (optional)";
+            document.getElementById("fundCode").placeholder = gold ? "e.g., 999 or 916 or Maybank GIA" : "e.g., GEF001";
+            document.getElementById("fundName").placeholder = gold ? "e.g., Maybank GIA / 916 Bracelet" : "e.g., Global Equity Fund";
+            document.getElementById("fundNavLabel").textContent = gold ? "Today's Price (RM / gram)" : "Current NAV";
+        }
+
         function openAddFundModal() {
             const accountId = activeLedgerAccountView;
             if (accountId === "all") return;
@@ -6853,7 +6994,9 @@
             currSel.value = baseCurrency;
             document.getElementById("fundNav").value = "1.0000";
             document.getElementById("fundDeleteBtn").style.display = "none";
+            document.getElementById("fundNavStaleness").style.display = "none";
             renderFundOwnerCheckboxes([]);
+            handleFundCategoryChange();
             openModal("fundModal");
         }
 
@@ -6872,7 +7015,17 @@
             currSel.value = fund.currency || baseCurrency;
             document.getElementById("fundNav").value = fund.currentNav;
             document.getElementById("fundDeleteBtn").style.display = "block";
+            const staleEl = document.getElementById("fundNavStaleness");
+            const days = isGoldFund(fund) ? daysSinceLocalDateStr(fund.priceUpdatedAt) : null;
+            if (days !== null) {
+                staleEl.style.display = "block";
+                staleEl.textContent = days === 0 ? "Updated today" : `Updated ${days}d ago`;
+                staleEl.style.color = days >= 2 ? "var(--expense-color)" : "var(--text-muted)";
+            } else {
+                staleEl.style.display = "none";
+            }
             renderFundOwnerCheckboxes(Array.isArray(fund.ownerMemberIds) ? fund.ownerMemberIds : []);
+            handleFundCategoryChange();
             openModal("fundModal");
         }
 
@@ -6891,25 +7044,28 @@
             const nav = parseFloat(document.getElementById("fundNav").value);
             if (isNaN(nav) || nav < 0) { alert("Please enter a valid Current NAV."); return; }
             const ownerMemberIds = Array.from(document.querySelectorAll(".fund-owner-checkbox:checked")).map(cb => cb.value);
-
-            const id = document.getElementById("fundId").value || "fund_" + Date.now();
+            const category = document.getElementById("fundCategory").value;
+            const isNew = !document.getElementById("fundId").value;
+            // v414: a brand-new Gold holding gets a "gold_" id instead of "fund_" — see the
+            // GOLD holdings comment block above getFundsForAccount() for why (pure namespacing,
+            // no other behavioural difference from a regular fund record).
+            const id = document.getElementById("fundId").value || ((category === "Gold" ? "gold_" : "fund_") + Date.now());
+            const existing = isNew ? null : (await readAllDB(STORES.FUNDS)).find(f => f.id === id);
             const record = {
                 id,
                 accountId: document.getElementById("fundAccountId").value,
                 name,
                 code: document.getElementById("fundCode").value.trim() || null,
-                category: document.getElementById("fundCategory").value,
+                category,
                 currency: document.getElementById("fundCurrency").value,
                 ownerMemberIds,
                 currentNav: nav,
-                units: 0
+                units: existing ? (existing.units || 0) : 0,
+                // v414: stamped whenever the price actually changes (covers both regular NAV
+                // edits and gold's manual daily rate) — only actually displayed for Gold today,
+                // via goldStalenessBadgeHTML()/editFund(), but harmless to track for every fund.
+                priceUpdatedAt: (!existing || nav !== (existing.currentNav || 0)) ? todayLocalStr() : (existing.priceUpdatedAt || null)
             };
-            // Preserve the running unit balance when editing — this form never touches units,
-            // only fund metadata + NAV.
-            if (document.getElementById("fundId").value) {
-                const existing = (await readAllDB(STORES.FUNDS)).find(f => f.id === id);
-                record.units = existing ? (existing.units || 0) : 0;
-            }
             await writeDB(STORES.FUNDS, record);
             closeModal("fundModal");
             renderApp();
@@ -6945,14 +7101,15 @@
 
             document.getElementById("fundTxModalTitle").textContent = "Add Transaction";
             document.getElementById("fundTxId").value = "";
-            document.getElementById("fundTxType").value = "buy";
             document.getElementById("fundTxDate").value = todayLocalStr();
             document.getElementById("fundTxUnits").value = "";
             document.getElementById("fundTxPrice").value = "";
             document.getElementById("fundTxTotal").value = "";
             document.getElementById("fundTxNotes").value = "";
             document.getElementById("fundTxDeleteBtn").style.display = "none";
-            handleFundTxTypeChange();
+            // v414: rebuilds the Type dropdown (Buy/Sell only for Gold) + relabels Units/Price
+            // per gram before defaulting to "buy" — must run after fundSel.value is set above.
+            await handleFundTxFundChange();
             openModal("fundTxModal");
         }
 
@@ -6989,12 +7146,18 @@
             const transferSel = document.getElementById("fundTxTransferAccount");
             transferSel.innerHTML = cashAccounts.map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(accountOptionLabel(a, accounts))}</option>`).join("");
 
-            document.getElementById("fundTxType").value = tx.fundTxType;
             document.getElementById("fundTxDate").value = tx.date;
             document.getElementById("fundTxUnits").value = tx.units != null ? tx.units : "";
             document.getElementById("fundTxPrice").value = tx.pricePerUnit != null ? tx.pricePerUnit : "";
             document.getElementById("fundTxTotal").value = tx.amount;
             document.getElementById("fundTxNotes").value = tx.notes || "";
+            // v414: rebuild Type options (Buy/Sell only for Gold) + relabel Units/Price per gram
+            // for THIS fund first, so the type value assigned right after actually sticks — a
+            // Gold fund's rebuilt option list only contains buy/sell anyway, matching tx.fundTxType
+            // for every real gold transaction (edit-in-place is blocked for Gold before this modal
+            // is ever reached — see openTransactionForm's tx.fundId branch).
+            await handleFundTxFundChange();
+            document.getElementById("fundTxType").value = tx.fundTxType;
             handleFundTxTypeChange();
 
             // Pre-select which cash account this entry transferred from/to/into, based on type —
@@ -7054,8 +7217,6 @@
                 acctRow.style.display = "none";
             }
         }
-        function handleFundTxFundChange() { /* no-op hook, kept for symmetry with other forms */ }
-
         async function handleSaveFundTx() {
             const editId = document.getElementById("fundTxId").value;
             const accountId = document.getElementById("fundTxAccountId").value;
@@ -7347,8 +7508,8 @@
                             <span style="font-size:0.68rem; color:var(--primary); font-weight:700;">${escapeHtml(ownerLabel)}</span>
                         </td>
                         <td style="padding:8px 10px;">${escapeHtml(f.category || "")}</td>
-                        <td style="padding:8px 10px; text-align:right;">${(f.units || 0).toFixed(4)}</td>
-                        <td style="padding:8px 10px; text-align:right;">${formatCurrency(f.currentNav || 0, f.currency)}</td>
+                        <td style="padding:8px 10px; text-align:right;">${(f.units || 0).toFixed(4)}${isGoldFund(f) ? " g" : ""}</td>
+                        <td style="padding:8px 10px; text-align:right;">${formatCurrency(f.currentNav || 0, f.currency)}${isGoldFund(f) ? "/g" : ""}${goldStalenessBadgeHTML(f)}</td>
                         <td style="padding:8px 10px; text-align:right;"><strong>${formatCurrency(value, f.currency)}</strong></td>
                         <td style="padding:8px 10px; text-align:right;">${formatCurrency(invested, f.currency)}</td>
                         <td style="padding:8px 10px; text-align:right; color:${plColor}; font-weight:700;">${pl >= 0 ? "+" : ""}${formatCurrency(pl, f.currency)}</td>
@@ -7524,27 +7685,39 @@
         // wants to show the Account No./Ref in its own separate spot — see the Accounts-page
         // .account-card-refline below the account name — opt out of it here, so it isn't also
         // repeated in whatever this function returns for the rest of the row/banner.
-        function accountExtraInfoLine(a, nativeBalances, includeRef = true) {
+        function accountExtraInfoLine(a, nativeBalances, includeRef = true, accounts = null) {
             const group = a.group || DEFAULT_ACCOUNT_GROUP;
             // Account No. / Ref (v130): plain informational text, independent of group/type, so
             // it's built separately here and prepended ahead of whichever type-specific line (if
             // any) applies below, rather than living inside one of those mutually-exclusive
             // branches.
             const refLine = (includeRef && a.accountRef) ? `<br><span style="font-size:0.7rem; color:var(--text-muted); font-weight:600;">${escapeHtml(a.accountRef)}</span>` : "";
-            if (a.type === "creditcard" && (a.creditLimit || a.statementDay || a.paymentDueDay)) {
+            // v412: "Shares Credit Limit With" — when set, Limit/Available are computed across
+            // the whole group (this card's anchor + every other card pointing at that same
+            // anchor) instead of just this one account, so every card in the group shows the
+            // identical combined figure (same bank, one real credit facility split across
+            // several physical cards). Falls back to this account alone, exactly as before, when
+            // it isn't part of a group or the caller didn't pass `accounts` (a couple of call
+            // sites don't have it handy — same optionality nativeBalances already has below).
+            const ccGroupMembers = (a.type === "creditcard" && accounts) ? getCreditLimitGroupMembers(a, accounts) : [a];
+            const ccAnchor = ccGroupMembers[0];
+            const ccIsGroup = ccGroupMembers.length > 1;
+            if (a.type === "creditcard" && (ccAnchor.creditLimit || a.statementDay || a.paymentDueDay)) {
                 const bits = [];
-                if (a.creditLimit) bits.push(`Limit ${formatBalanceHTML(a.creditLimit, a.currency || baseCurrency)}`);
+                if (ccAnchor.creditLimit) bits.push(`Limit ${formatBalanceHTML(ccAnchor.creditLimit, a.currency || baseCurrency)}${ccIsGroup ? " (shared)" : ""}`);
                 if (a.statementDay) bits.push(`Statement day ${a.statementDay}`);
                 if (a.paymentDueDay) bits.push(`Due day ${a.paymentDueDay}`);
-                // v127: "Available" = credit limit minus whatever's currently owed (same amountDue
-                // math used everywhere else on the card, i.e. this account's balance negated and
-                // floored at 0). Only computable when both a limit is set AND balances were passed
-                // in by the caller — accountExtraInfoLine() is also called from a couple of spots
-                // that don't have nativeBalances handy (e.g. before it's been computed yet), so this
-                // stays optional rather than breaking those call sites.
-                if (a.creditLimit && nativeBalances) {
-                    const ccAmountDueForAvail = Math.max(0, -(nativeBalances[a.id] || 0));
-                    const available = Math.max(0, a.creditLimit - ccAmountDueForAvail);
+                // v127/v412: "Available" = credit limit minus whatever's currently owed. For a
+                // group, "owed" is summed across every member card (spending on any one of them
+                // draws down the same shared facility) — same amountDue math used everywhere else
+                // on a card (balance negated, floored at 0), just totalled. Only computable when
+                // both a limit is set AND balances were passed in by the caller —
+                // accountExtraInfoLine() is also called from a couple of spots that don't have
+                // nativeBalances handy (e.g. before it's been computed yet), so this stays
+                // optional rather than breaking those call sites.
+                if (ccAnchor.creditLimit && nativeBalances) {
+                    const ccAmountDueForAvail = ccGroupMembers.reduce((sum, m) => sum + Math.max(0, -(nativeBalances[m.id] || 0)), 0);
+                    const available = Math.max(0, ccAnchor.creditLimit - ccAmountDueForAvail);
                     bits.push(`Available ${formatBalanceHTML(available, a.currency || baseCurrency)}`);
                 }
                 return refLine + (bits.length ? `<br><span style="font-size:0.7rem; color:#9d174d; font-weight:600;">💳 ${bits.join(" · ")}</span>` : "");
@@ -9340,7 +9513,7 @@
                 const acctRefLine = a.accountRef
                     ? `<div class="account-card-refline">${escapeHtml(a.accountRef)}</div>`
                     : "";
-                const extraInfoLine = accountExtraInfoLine(a, nativeBalances, false);
+                const extraInfoLine = accountExtraInfoLine(a, nativeBalances, false, accounts);
 
                 // Credit Card (v127): same "Amount due" line + 💳 Pay button as the main Accounts
                 // page (renderAccountsPage) — see that copy's comment for what amountDue means.
@@ -10387,7 +10560,7 @@
                     accountRef: "", subgroup: "", linkedAccountId: null, includeInNetWorth: true,
                     propertyType: "", holdingStartDate: "", tenureType: "", leaseTermYears: 0, leaseExpiryDate: "",
                     hasRedrawFacility: false, redrawAmount: 0, redrawAsOfDate: "",
-                    creditLimit: 0, statementDay: null, paymentDueDay: null, defaultPaymentAccountId: null,
+                    creditLimit: 0, statementDay: null, paymentDueDay: null, defaultPaymentAccountId: null, sharedLimitAccountId: null,
                     memberIds: [], initialBalance: 0, currency: baseCurrency
                 });
             }
@@ -11211,7 +11384,18 @@
                 // below — tapping one instead opens the dedicated fund-transaction editor, which
                 // knows how to unwind the old unit delta and apply the new one correctly.
                 if (tx.fundId) {
-                    await openEditFundTxModal(tx);
+                    // v414: Gold transactions are edit-locked — see the GOLD holdings comment
+                    // block near getFundsForAccount() for why. Falls through to the existing
+                    // delete-and-relog flow instead of the full editor; if the fund record itself
+                    // is gone this is exactly what handleFundTxRowTap already does anyway, so a
+                    // missing fund (found === undefined) safely takes the same non-gold path below.
+                    const fundsForTap = await readAllDB(STORES.FUNDS);
+                    const fundForTap = fundsForTap.find(f => f.id === tx.fundId);
+                    if (isGoldFund(fundForTap)) {
+                        await handleFundTxRowTap(tx);
+                    } else {
+                        await openEditFundTxModal(tx);
+                    }
                     return;
                 }
 
@@ -16117,21 +16301,27 @@
                 const upcoming = ccDueDateFor(anchor.getFullYear(), anchor.getMonth() + 1, a.paymentDueDay);
                 const daysUntilUpcoming = Math.round((upcoming - todayDate) / MS_PER_DAY);
 
-                // v230: how much of the current balance was actually billed by `anchor`'s
-                // statement (and therefore genuinely overdue), vs. freshly added afterwards and
-                // not yet due. Without statementDay set there's no way to draw that line, so it
-                // falls back to the old "whole balance" behavior.
-                let billedDebt = amountDueAsOfToday;
-                if (a.statementDay) {
-                    // The statement that produced `anchor`'s due date is the most recent
+                // v412: how much of the current balance was actually billed by a GIVEN due
+                // date's own statement (and therefore genuinely payable on that date), vs.
+                // freshly added afterwards and not yet due. Without statementDay set there's no
+                // way to draw that line, so it falls back to the old "whole balance" behavior.
+                // Genuinely per-due-date now (v230/v275 only ever computed this for `anchor`,
+                // the most recent PAST due date — the "due soon" advance-notice branch below
+                // was still stamping the upcoming due date with the full running balance,
+                // which double-counts next cycle's not-yet-billed spending as if it were due on
+                // the date being announced; e.g. charges made after this card's own statement
+                // day belong to the FOLLOWING statement/due date, not the one coming up next).
+                function billedDebtFor(dueDateObj, fallbackAmount) {
+                    if (!a.statementDay) return fallbackAmount;
+                    // The statement that produced dueDateObj's due date is the most recent
                     // statementDay occurrence on or before that due date — same month as the due
                     // date when statementDay comes first (e.g. closes day 3, due day 23), or the
                     // prior month when the due date falls before statementDay within the month
                     // (e.g. closes day 25, due day 10 of the following month).
-                    let closeDate = ccDueDateFor(anchor.getFullYear(), anchor.getMonth(), a.statementDay);
-                    if (closeDate > anchor) closeDate = ccDueDateFor(anchor.getFullYear(), anchor.getMonth() - 1, a.statementDay);
+                    let closeDate = ccDueDateFor(dueDateObj.getFullYear(), dueDateObj.getMonth(), a.statementDay);
+                    if (closeDate > dueDateObj) closeDate = ccDueDateFor(dueDateObj.getFullYear(), dueDateObj.getMonth() - 1, a.statementDay);
                     const closeStr = localDateStr(closeDate);
-                    billedDebt = Math.max(0, -ccBalanceAsOf(a, closeStr));
+                    let billed = Math.max(0, -ccBalanceAsOf(a, closeStr));
                     // v275: subtract anything already paid toward THIS cycle's billed debt
                     // specifically, rather than the old approach of taking min(current total
                     // balance, billed debt) — that couldn't tell "old debt still outstanding"
@@ -16141,15 +16331,21 @@
                     // purchase: min() mistook the $58.40 for leftover old debt). Subtracting the
                     // actual payment from the actual billed amount gets this right regardless of
                     // what new spending has piled up since.
-                    billedDebt = Math.max(0, billedDebt - ccPaymentsAfter(closeStr));
+                    return Math.max(0, billed - ccPaymentsAfter(closeStr));
                 }
-                const overdueAmount = billedDebt;
+                const overdueAmount = billedDebtFor(anchor, amountDueAsOfToday);
 
-                let overdue, daysOverdue, dueDateStr, dueToday;
+                let overdue, daysOverdue, dueDateStr, dueToday, dueSoonAmount;
                 if (daysSinceAnchor === 0) {
+                    // anchor IS today, so it's the same statement/due-date pair overdueAmount
+                    // already covers.
                     overdue = false; dueToday = true; dueDateStr = localDateStr(anchor);
+                    dueSoonAmount = overdueAmount;
+                    if (dueSoonAmount <= 0.005) return; // today's bill was already settled (incl. paid in advance) — nothing genuinely due
                 } else if (daysUntilUpcoming <= 7) {
                     overdue = false; dueToday = (daysUntilUpcoming === 0); dueDateStr = localDateStr(upcoming);
+                    dueSoonAmount = billedDebtFor(upcoming, amountDue);
+                    if (dueSoonAmount <= 0.005) return; // nothing has been billed for the upcoming statement yet, or it's already settled — new spending since the last statement close isn't due on this date
                 } else {
                     if (overdueAmount <= 0.005) return; // nothing was billed by the last due date — new spending isn't due yet, and we're outside the 1-week advance window for the next one
                     overdue = true; daysOverdue = daysSinceAnchor; dueDateStr = localDateStr(anchor);
@@ -16157,7 +16353,7 @@
                 const daysAway = overdue ? null : (dueToday ? 0 : daysUntilUpcoming);
                 if (!overdue && !dueToday && daysAway > 7) return; // outside the 1-week advance window
 
-                const displayAmount = overdue ? overdueAmount : amountDue;
+                const displayAmount = overdue ? overdueAmount : dueSoonAmount;
                 const bg = overdue ? "#fee2e2" : "#fef3c7";
                 const border = overdue ? "#fecaca" : "#fde68a";
                 const textCol = overdue ? "#b91c1c" : "#92400e";
@@ -16331,7 +16527,7 @@
             const extraInfoBanner = document.getElementById("ledgerExtraInfoBanner");
             if (showFullAccountHistory) {
                 const viewingAcc = accounts.find(a => a.id === activeLedgerAccountView);
-                const infoHtml = viewingAcc ? accountExtraInfoLine(viewingAcc, nativeBalances).replace(/^<br>/, "") : "";
+                const infoHtml = viewingAcc ? accountExtraInfoLine(viewingAcc, nativeBalances, true, accounts).replace(/^<br>/, "") : "";
                 if (infoHtml) {
                     extraInfoBanner.innerHTML = infoHtml;
                     extraInfoBanner.style.display = "block";
@@ -19569,6 +19765,7 @@
             toggleLeaseFields: () => toggleLeaseFields(),
             handleFundTxTypeChange: () => handleFundTxTypeChange(),
             handleFundTxFundChange: () => handleFundTxFundChange(),
+            handleFundCategoryChange: () => handleFundCategoryChange(),
             onCategoryFormTypeChange: () => populateCategoryParentSelect(),
             handleSalaryMemberChange: () => handleSalaryMemberChange(),
             handleSalarySchemeChange: () => handleSalarySchemeChange(),
