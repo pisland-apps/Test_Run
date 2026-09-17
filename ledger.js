@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v401";
+        const APP_VERSION = "v402";
         const APP_VERSION_DATE = "2026-09-16";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -1403,14 +1403,6 @@
         let portfolioLedgerYearsCache = [];
         let ledgerBackToPage = "workspace"; 
 
-        // v86: which page the Backup & Restore page's Back button should return to — set by
-        // navigateToBackupPage()'s optional param. "datasecurity" (the default, matching the
-        // pre-v86 behavior) when reached via the Data Security hub's own "Backup & Restore" row;
-        // "workspace" when reached via the dashboard header's 💾 shortcut, which used to always
-        // land back on the Data Security hub regardless — a page the user may never have actually
-        // visited — forcing a second Back tap to actually get back to the dashboard.
-        let backupBackToPage = "datasecurity";
-
         // Fund's own Activity page (v48) — mirrors an account's Activity page, but scoped to one
         // fund's Buy/Sell/Dividend/Contribution transactions only.
         let activeFundActivityId = null;
@@ -1983,8 +1975,6 @@
             const tagsPage = document.getElementById("page-tags");
             const tagReportPage = document.getElementById("page-tag-report");
             const budgetPage = document.getElementById("page-budget");
-            const backupPage = document.getElementById("page-backup");
-            const autolockPage = document.getElementById("page-autolock");
             const databasePage = document.getElementById("page-database");
             // v278: bucketed with databasePage below rather than given its own dedicated
             // handleAttachmentReviewBackClick() — matches databasePage itself, whose on-screen
@@ -2010,11 +2000,13 @@
             // settings that one page's grid edits) — no separate page-id to bucket here anymore.
             // v398: Default Accounts' own page was folded back into page-categories (grouped with
             // the other add-transaction defaults) — no separate page-id here either.
+            // v402: Manage Members/Backup & Restore/Auto-Lock's own pages were folded into
+            // page-datasecurity itself (embedded inline, not just linked to) — no separate
+            // page-ids for those either now.
             const bgThemePage = document.getElementById("page-bgtheme");
             const netWorthCardStylePage = document.getElementById("page-networthcardstyle");
             const companionPage = document.getElementById("page-companion");
             const dashboardWidgetsPage = document.getElementById("page-dashboardwidgets");
-            const membersPage = document.getElementById("page-members");
             const memberPage = document.getElementById("page-member");
             const fundActivityPage = document.getElementById("page-fundactivity");
             const currencyActivityPage = document.getElementById("page-currencyactivity");
@@ -2027,11 +2019,6 @@
                 handleCurrencyActivityBackClick();
             } else if (!fundActivityPage.classList.contains("hidden")) {
                 handleFundActivityBackClick();
-            } else if (!membersPage.classList.contains("hidden")) {
-                // v394: was navigateToDataSecurityPage() — Manage Members' on-screen "← Back" now
-                // goes straight to the Dashboard (matches every other Settings sub-page's rail-
-                // driven navigation, see the bucket below), so hardware/gesture back matches it.
-                navigateToWorkspace();
             } else if (!memberPage.classList.contains("hidden")) {
                 navigateToWorkspace();
             } else if (!accountsPage.classList.contains("hidden")) {
@@ -2051,8 +2038,6 @@
                 !tagsPage.classList.contains("hidden") ||
                 !tagReportPage.classList.contains("hidden") ||
                 !budgetPage.classList.contains("hidden") ||
-                !backupPage.classList.contains("hidden") ||
-                !autolockPage.classList.contains("hidden") ||
                 !databasePage.classList.contains("hidden") ||
                 !attachmentReviewPage.classList.contains("hidden") ||
                 !totalSummaryPage.classList.contains("hidden") ||
@@ -3034,7 +3019,7 @@
         // --- SPA NAVIGATION PIPELINE ---
         // Every top-level page div's id — used by showPage() to hide all but the target,
         // so adding a new page never risks leaving a stale one visible underneath.
-        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-backup", "page-autolock", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-companion", "page-dashboardwidgets", "page-members", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
+        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-companion", "page-dashboardwidgets", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
         function showPage(id) {
             APP_PAGE_IDS.forEach(p => {
                 const el = document.getElementById(p);
@@ -3070,8 +3055,6 @@
                 case "page-tags": return "Manage Tags";
                 case "page-tag-report": return document.getElementById("tagReportTitle")?.textContent || "Spending by Tag";
                 case "page-budget": return "Budget — " + (document.getElementById("budgetPageMonthLabel")?.textContent || "");
-                case "page-backup": return "Export & Import";
-                case "page-autolock": return "Auto-Lock Settings";
                 case "page-database": return "Database";
                 case "page-attachment-review": return "Review Attachments";
                 case "page-total-summary": return "Total Bill Summary";
@@ -3085,7 +3068,6 @@
                 case "page-currency-report": return "Net Worth by Currency";
                 case "page-datasecurity": return "Settings";
                 case "page-navupdate": return "Daily NAV Update";
-                case "page-members": return "Manage Members";
                 case "page-member": return document.getElementById("memberPageTitle")?.textContent || "Member";
                 case "page-inventory": return "Inventory";
                 case "page-plannedpayments": return "Planned Payments";
@@ -4977,20 +4959,6 @@
             await renderCategoriesPage();
         }
 
-        function navigateToBackupPage(backTarget = "datasecurity") {
-            workspaceScrollY = window.scrollY;
-            backupBackToPage = backTarget;
-            showPage("page-backup");
-            window.scrollTo(0, 0);
-            pushVirtualState("backup");
-            calculateStorageMetrics();
-        }
-
-        function handleBackupBackClick() {
-            if (backupBackToPage === "workspace") navigateToWorkspace();
-            else navigateToDataSecurityPage();
-        }
-
         // "All Transactions" — used to be a sidebar item, now a bottom-of-dashboard button (v34).
         function navigateToAllLedgerPage() {
             navigateToLedgerPage("all");
@@ -5030,14 +4998,9 @@
             showPage("page-datasecurity");
             window.scrollTo(0, 0);
             pushVirtualState("datasecurity");
-        }
-
-        function navigateToMembersPage() {
-            closeSidebar();
-            workspaceScrollY = window.scrollY;
-            showPage("page-members");
-            window.scrollTo(0, 0);
-            pushVirtualState("members");
+            // v402: Manage Members is now embedded directly on this page (see the
+            // "widget-setting-card" block in index.html) rather than its own destination, so its
+            // list needs refreshing here the same way navigateToMembersPage() used to.
             renderMembersPage();
         }
 
@@ -5143,8 +5106,6 @@
             const ledgerHidden = document.getElementById("page-ledger").classList.contains("hidden");
             const accountsHidden = document.getElementById("page-accounts").classList.contains("hidden");
             const categoriesHidden = document.getElementById("page-categories").classList.contains("hidden");
-            const backupHidden = document.getElementById("page-backup").classList.contains("hidden");
-            const autolockHidden = document.getElementById("page-autolock").classList.contains("hidden");
             const databaseHidden = document.getElementById("page-database").classList.contains("hidden");
             const totalSummaryHidden = document.getElementById("page-total-summary").classList.contains("hidden");
             const monthlyTrendHidden = document.getElementById("page-monthly-trend").classList.contains("hidden");
@@ -5162,8 +5123,6 @@
             else if (!plannedPaymentsHidden) target = "plannedpayments";
             else if (!accountsHidden) target = "accounts";
             else if (!categoriesHidden) target = "categories";
-            else if (!backupHidden) target = "backup";
-            else if (!autolockHidden) target = "autolock";
             else if (!databaseHidden) target = "database";
             else if (!totalSummaryHidden) target = "total-summary";
             else if (!monthlyTrendHidden) target = "monthly-trend";
@@ -5183,9 +5142,11 @@
             }
         }
 
-        // Routes a sidebar tap to the matching page/modal. Backup & Restore, Accounts/Categories,
-        // Auto-Lock, App Local Database, and Spending/Income Breakdown are all full pages (not
-        // modals) — see the matching navigateTo*Page functions.
+        // Routes a sidebar tap to the matching page/modal. Accounts/Categories, App Local
+        // Database, and Spending/Income Breakdown are all full pages (not modals) — see the
+        // matching navigateTo*Page functions. (Backup & Restore/Manage Members/Auto-Lock no
+        // longer route here — v402 embedded them directly on page-datasecurity, reached only via
+        // navigateToDataSecurityPage()/the Setting sidebar entry.)
         function sidebarGo(el) {
             const target = el.dataset.target;
             closeSidebar();
@@ -5198,9 +5159,6 @@
             else if (target === "savings") navigateToSavingsPage();
             else if (target === "accounts") navigateToAccountsPage();
             else if (target === "categories") navigateToCategoriesPage();
-            else if (target === "backup") navigateToBackupPage("workspace");
-            else if (target === "members") navigateToMembersPage();
-            else if (target === "autolock") navigateToAutoLockPage();
             else if (target === "database") navigateToDatabasePage();
             else if (target === "total-summary") navigateToTotalSummaryPage();
             else if (target === "monthly-trend") navigateToMonthlyTrendPage();
@@ -8711,7 +8669,7 @@
             await loadMembersCache();
             renderSidebarMembers();
             renderSidebarAccountTypeShortcuts();
-            if (!document.getElementById("page-members").classList.contains("hidden")) {
+            if (!document.getElementById("page-datasecurity").classList.contains("hidden")) {
                 await renderMembersPage();
             }
             if (!document.getElementById("page-workspace").classList.contains("hidden")) {
@@ -18283,13 +18241,6 @@
             renderMonthlyTrendChart(txs, accounts);
         }
 
-        function navigateToAutoLockPage() {
-            workspaceScrollY = window.scrollY;
-            showPage("page-autolock");
-            window.scrollTo(0, 0);
-            pushVirtualState("autolock");
-        }
-
         function navigateToDatabasePage() {
             workspaceScrollY = window.scrollY;
             showPage("page-database");
@@ -19305,8 +19256,6 @@
             openTemplatePicker: () => openTemplatePicker(),
             closeTemplatePicker: () => closeTemplatePicker(),
             selectTemplateFromPicker: (el) => selectTemplateFromPicker(el),
-            navigateToBackupPage: () => navigateToBackupPage(),
-            handleBackupBackClick: () => handleBackupBackClick(),
             navigateToAllLedgerPage: () => navigateToAllLedgerPage(),
             navigateToDataSecurityPage: () => navigateToDataSecurityPage(),
             // v278: page-database's own back button used to only be reachable via sidebarGo's
@@ -19316,7 +19265,6 @@
             // needs its own dispatch entry now too.
             navigateToDatabasePage: () => navigateToDatabasePage(),
             navigateToAttachmentReviewPage: () => navigateToAttachmentReviewPage(),
-            navigateToMembersPage: () => navigateToMembersPage(),
             sidebarGoMember: (el) => sidebarGoMember(el),
             sidebarFilterAccountsByType: (el) => sidebarFilterAccountsByType(el),
             clearAccountsPageTypeFilter: () => clearAccountsPageTypeFilter(),

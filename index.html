@@ -3738,83 +3738,8 @@
         </div>
     </div>
 
-    <!-- ================= PAGE 6: BACKUP & RESTORE ================= -->
-    <div id="page-backup" class="page hidden">
-        <div class="nav-header">
-            <button class="back-btn" data-click="handleBackupBackClick">&larr; Back</button>
-            <div>
-                <h3 style="font-weight:800; font-size:1.2rem;">Backup &amp; Restore</h3>
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Export &amp; import your data</p>
-            </div>
-        </div>
-
-        <div class="settings-split">
-        <div class="settings-icon-rail-slot"></div>
-        <div class="settings-page-content">
-        <div class="section-header" style="margin-top:0;">
-            <span class="section-title">Security</span>
-        </div>
-        <div class="toggle-switch-row" id="biometricToggleRow" style="display:none;">
-            <span class="toggle-switch-label">🫆 Biometric quick unlock (fingerprint/Face)</span>
-            <label class="toggle-switch">
-                <input type="checkbox" id="biometricToggle" data-change="handleBiometricToggleChange">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="util-row">
-            <button class="btn-util" data-click="openChangePasscodeModal">🔑 Change Passcode</button>
-        </div>
-
-        <div class="section-header">
-            <span class="section-title">Export &amp; Import</span>
-        </div>
-        <div class="util-row">
-            <button class="btn-util" data-click="exportBackup">💾 Export JSON</button>
-            <button class="btn-util" data-click="openImportInput">📥 Import JSON</button>
-            <input type="file" id="importInput" accept=".json" style="display:none" data-change="importBackup">
-        </div>
-        <div class="toggle-switch-row">
-            <span class="toggle-switch-label">🔐 Encrypt this backup export</span>
-            <label class="toggle-switch">
-                <input type="checkbox" id="exportEncryptToggle" checked data-change="handleExportEncryptToggleChange">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <p class="export-hint-text hidden" id="exportPlaintextHint">明文备份不含密码保护，请妥善保管</p>
-        </div>
-        </div>
-    </div>
-
-    <!-- ================= PAGE: AUTO-LOCK (split out of Backup & Restore, v32) ================= -->
-    <div id="page-autolock" class="page hidden">
-        <div class="nav-header">
-            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
-            <div>
-                <h3 style="font-weight:800; font-size:1.2rem;">Auto-Lock</h3>
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Lock the app automatically after inactivity</p>
-            </div>
-        </div>
-
-        <div class="settings-split">
-        <div class="settings-icon-rail-slot"></div>
-        <div class="settings-page-content">
-        <div class="section-header" style="margin-top:0;">
-            <span class="section-title">Security</span>
-        </div>
-        <div class="form-row" style="margin-bottom:12px;">
-            <label>⏱️ Auto-lock after inactivity</label>
-            <select id="autoLockSelect" class="form-input" data-change="handleAutoLockChange">
-                <option value="0">Never</option>
-                <option value="1">1 min</option>
-                <option value="5">5 min</option>
-                <option value="15" selected>15 min</option>
-                <option value="30">30 min</option>
-            </select>
-        </div>
-        <p style="font-size:0.75rem; color:var(--text-muted);">Resets on any tap, click, keystroke, or scroll while unlocked. Choosing "Never" disables idle auto-lock entirely — you can still lock the app manually any time via the 🔒 header button.</p>
-        </div>
-        </div>
-    </div>
+    <!-- (Backup & Restore and Auto-Lock merged into page-datasecurity, v402 — see the
+         "widget-setting-card" blocks there.) -->
 
     <!-- ================= PAGE: APP LOCAL DATABASE (split out of Backup & Restore, v32) ================= -->
     <div id="page-database" class="page hidden">
@@ -4399,22 +4324,64 @@
             <button class="settings-icon-btn" title="Manage Tags" aria-label="Manage Tags" data-click="navigateToTagsPage"><span class="settings-icon-emoji">🔖</span></button>
             <button class="settings-icon-btn" title="App Local Database" aria-label="App Local Database" data-click="sidebarGo" data-target="database"><span class="settings-icon-emoji">🗄️</span></button>
         </div>
-        <!-- v401: page-datasecurity's detail pane used to be permanently blank (nothing selects
-             itself by default on first opening Setting) — Manage Members/Backup & Restore/
-             Auto-Lock moved here as plain nav rows instead of living as icons on the rail, so
-             opening Setting now shows something useful right away instead of an empty pane. -->
-        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:10px;">
-            <div class="config-item" style="cursor:pointer;" data-click="sidebarGo" data-target="members">
-                <span style="display:flex; align-items:center; gap:12px; font-weight:700;"><span style="font-size:1.3rem;">👪</span> Manage Members</span>
-                <span style="color:var(--text-muted); font-weight:700;">›</span>
+        <!-- v402: Manage Members/Backup & Restore/Auto-Lock used to be separate pages reached by
+             tapping a nav row here (v401); per request they're now embedded in full, inline, as
+             three stacked cards — no extra tap/page needed. Their old standalone pages
+             (page-members/page-backup/page-autolock) were removed; this is the only copy of
+             this markup now. -->
+        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:14px; padding-bottom:88px;">
+            <div class="widget-setting-card">
+                <div class="section-header" style="margin-top:0; margin-bottom:10px;">
+                    <span class="section-title">👪 Manage Members</span>
+                    <button class="text-btn" data-click="openMemberFormModal">+ Add Member</button>
+                </div>
+                <div class="config-list" id="membersPageList"></div>
             </div>
-            <div class="config-item" style="cursor:pointer;" data-click="sidebarGo" data-target="backup">
-                <span style="display:flex; align-items:center; gap:12px; font-weight:700;"><span style="font-size:1.3rem;">💾</span> Backup &amp; Restore</span>
-                <span style="color:var(--text-muted); font-weight:700;">›</span>
+            <div class="widget-setting-card">
+                <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">💾 BACKUP &amp; RESTORE</p>
+                <div class="section-header" style="margin-top:0;">
+                    <span class="section-title">Security</span>
+                </div>
+                <div class="toggle-switch-row" id="biometricToggleRow" style="display:none;">
+                    <span class="toggle-switch-label">🫆 Biometric quick unlock (fingerprint/Face)</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="biometricToggle" data-change="handleBiometricToggleChange">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="util-row">
+                    <button class="btn-util" data-click="openChangePasscodeModal">🔑 Change Passcode</button>
+                </div>
+                <div class="section-header">
+                    <span class="section-title">Export &amp; Import</span>
+                </div>
+                <div class="util-row">
+                    <button class="btn-util" data-click="exportBackup">💾 Export JSON</button>
+                    <button class="btn-util" data-click="openImportInput">📥 Import JSON</button>
+                    <input type="file" id="importInput" accept=".json" style="display:none" data-change="importBackup">
+                </div>
+                <div class="toggle-switch-row">
+                    <span class="toggle-switch-label">🔐 Encrypt this backup export</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="exportEncryptToggle" checked data-change="handleExportEncryptToggleChange">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <p class="export-hint-text hidden" id="exportPlaintextHint">明文备份不含密码保护，请妥善保管</p>
             </div>
-            <div class="config-item" style="cursor:pointer;" data-click="sidebarGo" data-target="autolock">
-                <span style="display:flex; align-items:center; gap:12px; font-weight:700;"><span style="font-size:1.3rem;">⏱️</span> Auto-Lock</span>
-                <span style="color:var(--text-muted); font-weight:700;">›</span>
+            <div class="widget-setting-card">
+                <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">⏱️ AUTO-LOCK</p>
+                <div class="form-row" style="margin-bottom:12px;">
+                    <label>Auto-lock after inactivity</label>
+                    <select id="autoLockSelect" class="form-input" data-change="handleAutoLockChange">
+                        <option value="0">Never</option>
+                        <option value="1">1 min</option>
+                        <option value="5">5 min</option>
+                        <option value="15" selected>15 min</option>
+                        <option value="30">30 min</option>
+                    </select>
+                </div>
+                <p style="font-size:0.75rem; color:var(--text-muted);">Resets on any tap, click, keystroke, or scroll while unlocked. Choosing "Never" disables idle auto-lock entirely — you can still lock the app manually any time via the 🔒 header button.</p>
             </div>
         </div>
         </div>
@@ -4663,23 +4630,8 @@
         <button type="button" class="submit-btn" id="navUpdateSaveBtn" data-click="handleSaveAllNav">Update All Prices</button>
     </div>
 
-    <!-- ================= PAGE: MANAGE MEMBERS (add/edit/remove household members) ================= -->
-    <div id="page-members" class="page hidden">
-        <div class="nav-header">
-            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
-            <div>
-                <h3 style="font-weight:800; font-size:1.2rem;">Manage Members</h3>
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Tag accounts to a member — husband, wife, kids, etc.</p>
-            </div>
-        </div>
-        <div class="settings-split">
-        <div class="settings-icon-rail-slot"></div>
-        <div class="settings-page-content">
-        <div class="config-list" id="membersPageList" style="padding-bottom:88px;"></div>
-        </div>
-        </div>
-        <button class="fab-btn" data-click="openMemberFormModal" aria-label="Add member" title="Add member">+</button>
-    </div>
+    <!-- (Manage Members merged into page-datasecurity, v402 — see the "widget-setting-card"
+         block there; #membersPageList now lives there.) -->
 
     <!-- ================= PAGE: MEMBER / JOINT FILTERED VIEW ================= -->
     <div id="page-member" class="page hidden">
