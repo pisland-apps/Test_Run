@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v405";
+        const APP_VERSION = "v406";
         const APP_VERSION_DATE = "2026-09-17";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -3024,6 +3024,30 @@
         // Every top-level page div's id — used by showPage() to hide all but the target,
         // so adding a new page never risks leaving a stale one visible underneath.
         const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-dashboardwidgets", "page-currencyconfig", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
+        // v406: which rail icon (by its data-click, and data-target for the one that uses
+        // sidebarGo instead of its own navigateTo*Page()) corresponds to which Settings page —
+        // used by updateSettingsIconRailActiveState() below to highlight the icon for whichever
+        // page is currently on screen. Deliberately has no entry for page-datasecurity itself
+        // (the Setting hub the rail's icons branch out from) or any non-Settings page — both
+        // fall through to "clear every icon's highlight", per request.
+        const SETTINGS_ICON_PAGE_MAP = {
+            "page-bgtheme": { click: "navigateToBgThemePage" },
+            "page-networthcardstyle": { click: "navigateToNetWorthCardStylePage" },
+            "page-dashboardwidgets": { click: "navigateToDashboardWidgetsPage" },
+            "page-currencyconfig": { click: "navigateToCurrencyConfigPage" },
+            "page-categories": { click: "navigateToCategoriesPage" },
+            "page-templates": { click: "navigateToTemplatesPage" },
+            "page-tags": { click: "navigateToTagsPage" },
+            "page-database": { click: "sidebarGo", target: "database" },
+        };
+        function updateSettingsIconRailActiveState(pageId) {
+            const match = SETTINGS_ICON_PAGE_MAP[pageId];
+            document.querySelectorAll(".settings-icon-btn").forEach(btn => {
+                const isMatch = !!match && btn.dataset.click === match.click && (match.target === undefined || btn.dataset.target === match.target);
+                btn.classList.toggle("active", isMatch);
+            });
+        }
+
         function showPage(id) {
             APP_PAGE_IDS.forEach(p => {
                 const el = document.getElementById(p);
@@ -3040,6 +3064,10 @@
             // v396: only does anything on the 13 Settings pages (the ones with a .settings-split
             // rail + content layout) — a no-op elsewhere, see the function itself.
             sizeSettingsSplitColumns();
+            // v406: highlights the rail icon matching `id`, or clears every icon's highlight if
+            // `id` has no entry in SETTINGS_ICON_PAGE_MAP (non-Settings pages, and the Setting
+            // hub page itself) — cheap query, safe to run unconditionally on every navigation.
+            updateSettingsIconRailActiveState(id);
         }
 
         // Human-readable title for whichever page is currently on screen — used for the printed
