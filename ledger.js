@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v395";
+        const APP_VERSION = "v396";
         const APP_VERSION_DATE = "2026-09-16";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -3058,6 +3058,9 @@
             // Keeps the sidebar's active-item highlight correct even when it's persistently
             // visible (desktop/tablet) rather than only refreshed on drawer-open (mobile).
             updateSidebarActiveState();
+            // v396: only does anything on the 13 Settings pages (the ones with a .settings-split
+            // rail + content layout) — a no-op elsewhere, see the function itself.
+            sizeSettingsSplitColumns();
         }
 
         // Human-readable title for whichever page is currently on screen — used for the printed
@@ -8016,6 +8019,29 @@
                 slot.innerHTML = source.innerHTML;
             });
         }
+
+        // v396: the icon rail and detail pane inside every Settings page's .settings-split row
+        // used to scroll together as part of the whole document (body itself scrolls — see the
+        // top-level CSS reset). Bounds both columns to whatever viewport space is actually left
+        // below the nav-header (measured live, so it's correct regardless of nav-header height at
+        // any given breakpoint or however long its subtitle wraps to) and lets CSS's
+        // `overflow-y: auto` on each column (see .settings-icon-grid/.settings-page-content)
+        // handle the rest — each one now scrolls independently within that space. A no-op on any
+        // page without a .settings-split, so calling this from showPage() unconditionally on
+        // every navigation is cheap and safe. Re-run on resize/orientation change too, since the
+        // available space (and which breakpoint's nav-header height applies) can change without a
+        // navigation happening.
+        function sizeSettingsSplitColumns() {
+            const activePage = document.querySelector(".page:not(.hidden)");
+            const split = activePage ? activePage.querySelector(".settings-split") : null;
+            if (!split) return;
+            const top = split.getBoundingClientRect().top;
+            const available = Math.max(200, Math.round(window.innerHeight - top - 16));
+            split.querySelectorAll(":scope > .settings-icon-grid, :scope > .settings-page-content").forEach(col => {
+                col.style.maxHeight = available + "px";
+            });
+        }
+        window.addEventListener("resize", sizeSettingsSplitColumns);
 
         // v394: own full page now (page-bgtheme), see the block comment above.
         function navigateToBgThemePage() {

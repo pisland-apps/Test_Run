@@ -2171,6 +2171,11 @@
             flex-direction: column;
             gap: 10px;
             flex-shrink: 0;
+            /* v396: overflow-y is set here so JS (sizeSettingsSplitColumns()) only ever has to
+               set max-height per page/resize — with no max-height applied yet (e.g. before that
+               runs, or on a page that opts out for some reason) this has no visible effect since
+               the box just grows to fit its content, same as before. */
+            overflow-y: auto;
         }
         .settings-icon-btn {
             display: flex;
@@ -2190,7 +2195,14 @@
         /* v393/v394: .settings-icon-rail-slot placeholders start empty and get the rail's
            innerHTML injected once at bootstrap (cloneSettingsIconRails() in ledger.js), then
            carry this same class themselves. */
-        .settings-page-content { flex: 1; min-width: 0; }
+        /* v396: icon rail (above) and detail pane (here) used to scroll together as part of the
+           whole document (body itself scrolls — see the top-level reset near the top of this
+           file) — fine while both were short, but a long rail next to a much longer detail pane
+           meant scrolling one always dragged the other along with it. sizeSettingsSplitColumns()
+           in ledger.js bounds both to whatever viewport space is actually left below the
+           nav-header (recalculated on navigation and on resize), so each one scrolls on its own
+           within that space instead. */
+        .settings-page-content { flex: 1; min-width: 0; overflow-y: auto; }
         .settings-icon-btn:hover {
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             transform: translateY(-1px);
