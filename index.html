@@ -3460,43 +3460,51 @@
         <div class="settings-split">
         <div class="settings-icon-rail-slot"></div>
         <div class="settings-page-content">
-        <div class="section-header" style="margin-top:0;">
-            <span class="section-title">Default Accounts</span>
-        </div>
-        <div class="form-row-inline" style="margin-bottom:18px;">
-            <div>
-                <label>Default Payment Account</label>
-                <button type="button" id="defaultPaymentAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultPaymentAccountSelect" data-title="Default Payment Account">
-                    <span id="defaultPaymentAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                </button>
-                <select id="defaultPaymentAccountSelect" style="display:none;" data-change="saveDefaultPaymentAccount"></select>
+        <!-- v404: Default Accounts/Default Category grouped into their own .widget-setting-card
+             sections (same pattern as page-dashboardwidgets/page-networthcardstyle) so they read
+             as distinct settings blocks, instead of blending into the plain .section-header rows
+             used by the Income/Spending Categories lists below. -->
+        <div class="widget-setting-card" style="margin-bottom:14px;">
+            <div class="section-header" style="margin-top:0;">
+                <span class="section-title">Default Accounts</span>
             </div>
-            <div>
-                <label>Default Receive Account</label>
-                <button type="button" id="defaultReceiveAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultReceiveAccountSelect" data-title="Default Receive Account">
-                    <span id="defaultReceiveAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                </button>
-                <select id="defaultReceiveAccountSelect" style="display:none;" data-change="saveDefaultReceiveAccount"></select>
+            <div class="form-row-inline" style="margin-bottom:0;">
+                <div>
+                    <label>Default Payment Account</label>
+                    <button type="button" id="defaultPaymentAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultPaymentAccountSelect" data-title="Default Payment Account">
+                        <span id="defaultPaymentAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                    </button>
+                    <select id="defaultPaymentAccountSelect" style="display:none;" data-change="saveDefaultPaymentAccount"></select>
+                </div>
+                <div>
+                    <label>Default Receive Account</label>
+                    <button type="button" id="defaultReceiveAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultReceiveAccountSelect" data-title="Default Receive Account">
+                        <span id="defaultReceiveAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                    </button>
+                    <select id="defaultReceiveAccountSelect" style="display:none;" data-change="saveDefaultReceiveAccount"></select>
+                </div>
             </div>
         </div>
 
-        <div class="section-header" style="margin-top:0;">
-            <span class="section-title">Default Category</span>
-        </div>
-        <div class="form-row-inline" style="margin-bottom:18px;">
-            <div>
-                <label>Default Income Category</label>
-                <button type="button" id="defaultIncomeCategorySelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultIncomeCategorySelect" data-title="Default Income Category">
-                    <span id="defaultIncomeCategorySelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                </button>
-                <select id="defaultIncomeCategorySelect" style="display:none;" data-change="saveDefaultCategories"></select>
+        <div class="widget-setting-card" style="margin-bottom:18px;">
+            <div class="section-header" style="margin-top:0;">
+                <span class="section-title">Default Category</span>
             </div>
-            <div>
-                <label>Default Expense Category</label>
-                <button type="button" id="defaultExpenseCategorySelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultExpenseCategorySelect" data-title="Default Expense Category">
-                    <span id="defaultExpenseCategorySelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                </button>
-                <select id="defaultExpenseCategorySelect" style="display:none;" data-change="saveDefaultCategories"></select>
+            <div class="form-row-inline" style="margin-bottom:0;">
+                <div>
+                    <label>Default Income Category</label>
+                    <button type="button" id="defaultIncomeCategorySelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultIncomeCategorySelect" data-title="Default Income Category">
+                        <span id="defaultIncomeCategorySelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                    </button>
+                    <select id="defaultIncomeCategorySelect" style="display:none;" data-change="saveDefaultCategories"></select>
+                </div>
+                <div>
+                    <label>Default Expense Category</label>
+                    <button type="button" id="defaultExpenseCategorySelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultExpenseCategorySelect" data-title="Default Expense Category">
+                        <span id="defaultExpenseCategorySelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                    </button>
+                    <select id="defaultExpenseCategorySelect" style="display:none;" data-change="saveDefaultCategories"></select>
+                </div>
             </div>
         </div>
 
