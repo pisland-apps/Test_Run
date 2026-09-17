@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v396";
+        const APP_VERSION = "v397";
         const APP_VERSION_DATE = "2026-09-16";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -2001,15 +2001,16 @@
             const currencyReportPage = document.getElementById("page-currency-report");
             const navUpdatePage = document.getElementById("page-navupdate");
             const dataSecurityPage = document.getElementById("page-datasecurity");
-            // v394: the 6 items that used to be inline panels on page-datasecurity (Background
-            // Theme/Net Worth Card Style/Companion/Monthly Trend Mascot/Dashboard Widgets/Default
-            // Accounts) are now their own pages, bucketed below with Categories/Backup/etc. — same
-            // treatment as those, since their on-screen "← Back" also now goes straight to
-            // navigateToWorkspace() (see the "v394" comment on that bucket below).
+            // v394: the items that used to be inline panels on page-datasecurity (Background
+            // Theme/Net Worth Card Style/Companion/Dashboard Widgets/Default Accounts) are now
+            // their own pages, bucketed below with Categories/Backup/etc. — same treatment as
+            // those, since their on-screen "← Back" also now goes straight to navigateToWorkspace()
+            // (see the "v394" comment on that bucket below). v397: Monthly Trend Mascot's own
+            // separate page was merged into page-companion (a toggle now picks which of the two
+            // settings that one page's grid edits) — no separate page-id to bucket here anymore.
             const bgThemePage = document.getElementById("page-bgtheme");
             const netWorthCardStylePage = document.getElementById("page-networthcardstyle");
             const companionPage = document.getElementById("page-companion");
-            const monthlyTrendMascotPage = document.getElementById("page-monthlytrendmascot");
             const dashboardWidgetsPage = document.getElementById("page-dashboardwidgets");
             const defaultAccountsPage = document.getElementById("page-defaultaccounts");
             const membersPage = document.getElementById("page-members");
@@ -2065,7 +2066,6 @@
                 !bgThemePage.classList.contains("hidden") ||
                 !netWorthCardStylePage.classList.contains("hidden") ||
                 !companionPage.classList.contains("hidden") ||
-                !monthlyTrendMascotPage.classList.contains("hidden") ||
                 !dashboardWidgetsPage.classList.contains("hidden") ||
                 !defaultAccountsPage.classList.contains("hidden") ||
                 !inventoryPage.classList.contains("hidden") ||
@@ -3044,7 +3044,7 @@
         // --- SPA NAVIGATION PIPELINE ---
         // Every top-level page div's id — used by showPage() to hide all but the target,
         // so adding a new page never risks leaving a stale one visible underneath.
-        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-backup", "page-autolock", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-companion", "page-monthlytrendmascot", "page-dashboardwidgets", "page-defaultaccounts", "page-members", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
+        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-backup", "page-autolock", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-companion", "page-dashboardwidgets", "page-defaultaccounts", "page-members", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
         function showPage(id) {
             APP_PAGE_IDS.forEach(p => {
                 const el = document.getElementById(p);
@@ -8161,6 +8161,28 @@
         const MONTHLY_TREND_MASCOT_SETTINGS_KEY = "monthlyTrendMascotId"; // v382
         const COMPANION_PHOTOS_SETTINGS_KEY = "companionCustomImages";
         const MAX_COMPANION_PHOTOS = 20;
+        // v397: which spot the merged Companion page's one swatch grid (#companionSwatchGrid) is
+        // currently editing — "companion" (the Net Worth card mascot) or "trend" (the Monthly
+        // Trend title mascot). Both settings still live in their own separate keys above (and
+        // both still resolve/render independently everywhere else in the app, e.g.
+        // renderMonthlyTrendMascotIcon()'s "Match Companion" fallback) — this variable only
+        // controls which one this one page is showing/editing right now, reset by
+        // navigateToCompanionPage()'s target argument every time the page opens.
+        let mascotSettingsTarget = "companion";
+        const MASCOT_TARGET_HINTS = {
+            companion: 'A small mascot next to your Portfolio Net Worth figure. Save up to 20 of your own photos below and switch between them any time — each preview shows how it actually looks on the card. Tap the "×" on a photo to remove it.',
+            trend: 'The small mascot next to the "Monthly Trend" title on your Dashboard. Leave this on "Match Companion" to always mirror the Net Worth card pick, or choose something different just for this spot.',
+        };
+        function applyMascotTargetUI(target) {
+            mascotSettingsTarget = target;
+            document.querySelectorAll("#mascotTargetToggle .btn-util").forEach(b => b.classList.toggle("active", b.dataset.target === target));
+            const hint = document.getElementById("mascotTargetHint");
+            if (hint) hint.textContent = MASCOT_TARGET_HINTS[target] || MASCOT_TARGET_HINTS.companion;
+        }
+        function selectMascotTarget(el) {
+            applyMascotTargetUI(el.dataset.target);
+            buildCompanionSwatchGrid();
+        }
         async function getCompanionCustomPhotos() {
             const rec = await readKeyDB("settings", COMPANION_PHOTOS_SETTINGS_KEY);
             return (rec && Array.isArray(rec.value)) ? rec.value : [];
@@ -8211,12 +8233,16 @@
             // v348: a freshly uploaded photo is selected right away — matches v343-v347's
             // behavior where uploading always became the active companion, and saves an extra
             // tap versus uploading then having to go find and select the new thumbnail.
-            await applyCompanionPet("custom:" + newPhoto.id);
+            // v397: "active" now means whichever target the merged page's toggle is currently on
+            // (Net Worth card vs Monthly Trend), since a single upload control is now shared by
+            // both instead of the Companion grid always claiming it.
+            if (mascotSettingsTarget === "trend") {
+                try { await writeDB(STORES.SETTINGS, { key: MONTHLY_TREND_MASCOT_SETTINGS_KEY, value: "custom:" + newPhoto.id }); } catch (e) {}
+                renderMonthlyTrendMascotIcon();
+            } else {
+                await applyCompanionPet("custom:" + newPhoto.id);
+            }
             await buildCompanionSwatchGrid();
-            // v383: keep the Monthly Trend Mascot grid's "My Photos" count/list in sync if it's
-            // also open right now — same reasoning as removeCompanionCustomPhoto()'s matching call.
-            const trendPanel = document.getElementById("monthlyTrendMascotSettingsPanel");
-            if (trendPanel && trendPanel.style.display !== "none") await buildMonthlyTrendMascotSwatchGrid();
         }
         // v348: replaces v343-v347's single removeCompanionCustomImage() (which cleared the one
         // fixed slot) — this removes one specific photo from the library, identified by the "×"
@@ -8240,8 +8266,6 @@
                 await writeDB(STORES.SETTINGS, { key: MONTHLY_TREND_MASCOT_SETTINGS_KEY, value: "match" });
             }
             await buildCompanionSwatchGrid();
-            const trendPanel = document.getElementById("monthlyTrendMascotSettingsPanel");
-            if (trendPanel && trendPanel.style.display !== "none") await buildMonthlyTrendMascotSwatchGrid();
             renderMonthlyTrendMascotIcon();
         }
         async function getSavedCompanionId() {
@@ -8303,16 +8327,35 @@
             }
             return resolvedId;
         }
+        // v397: single grid for the merged Companion page — reads mascotSettingsTarget to decide
+        // which of the two independent settings (Net Worth card companion vs Monthly Trend
+        // mascot) it's currently showing/editing. Replaces the old separate
+        // buildMonthlyTrendMascotSwatchGrid() (deleted) — that page's whole body is now just this
+        // same grid rendered with a different selectedId/clickHandler/leadingOptions.
         async function buildCompanionSwatchGrid() {
             const grid = document.getElementById("companionSwatchGrid");
             if (!grid) return;
-            const selectedId = await getSavedCompanionId();
-            grid.innerHTML = await buildMascotSwatchGridHTML(selectedId, "selectCompanion", []);
+            if (mascotSettingsTarget === "trend") {
+                const selectedId = await getSavedMonthlyTrendMascotId();
+                const matchOption = {
+                    id: "match", name: "Match Companion", short: "🔗",
+                    svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 24a6 6 0 0 1 6-6h6" /><path d="M30 24a6 6 0 0 1-6 6h-6" />
+                        <path d="M20 14l4 4-4 4" /><path d="M28 26l-4 4 4 4" />
+                    </svg>`,
+                };
+                grid.innerHTML = await buildMascotSwatchGridHTML(selectedId, "selectMonthlyTrendMascot", [matchOption]);
+            } else {
+                const selectedId = await getSavedCompanionId();
+                grid.innerHTML = await buildMascotSwatchGridHTML(selectedId, "selectCompanion", []);
+            }
         }
-        // v382: shared by both the Companion grid and the (independent) Monthly Trend Mascot
-        // grid below — `leadingOptions` lets a caller prepend extra hand-written swatches (the
-        // Monthly Trend picker uses this for its "Match Companion" option) ahead of the regular
-        // None/Zodiac/My Photos groups that both pickers share.
+        // v382: shared by both the Companion pick and the (independent) Monthly Trend Mascot pick
+        // — `leadingOptions` lets a caller prepend extra hand-written swatches (the Monthly Trend
+        // picker uses this for its "Match Companion" option) ahead of the regular None/My Photos
+        // groups both pickers share. v397: both used to be rendered into two separate grids on two
+        // separate pages; now buildCompanionSwatchGrid() above calls this once for whichever
+        // target the merged page's toggle is on, into the one shared #companionSwatchGrid.
         async function buildMascotSwatchGridHTML(selectedId, clickHandler, leadingOptions) {
             const photos = await getCompanionCustomPhotos();
             const swatchHTML = c => `
@@ -8335,12 +8378,13 @@
             // .companion-swatch-photo-holder); an "＋ Add" tile follows for as long as there's
             // room left (hidden once the library hits MAX_COMPANION_PHOTOS, with a plain count
             // in the heading telling the person why — the "×" on any thumbnail is then the only
-            // way to make room again). v382: the upload tile only renders in the Companion grid
-            // (clickHandler === "selectCompanion") — both pickers share the same 20-photo library
-            // (getCompanionCustomPhotos/MAX_COMPANION_PHOTOS), so a second upload entry point on
-            // the Monthly Trend grid would just be a duplicate of the same control. The "×" remove
-            // button, unlike Add, is NOT restricted this way — it's just a delete on the shared
-            // library, not a second instance of any control, so it's available from either grid.
+            // way to make room again). v397: the upload tile used to only render for the Companion
+            // grid specifically (clickHandler === "selectCompanion") back when Companion and
+            // Monthly Trend Mascot were two separate pages each with their own copy of this grid —
+            // now there's only ever one physical grid on screen at a time (the merged Companion
+            // page's toggle just swaps which target it's editing), so the upload tile always
+            // renders; handleCompanionCustomImageSelected() checks mascotSettingsTarget itself to
+            // decide which of the two settings a fresh upload actually applies to.
             html += `<p class="companion-group-label">My Photos (${photos.length}/${MAX_COMPANION_PHOTOS})</p>`;
             html += `<div class="companion-swatch-grid">`;
             html += photos.map(p => {
@@ -8356,7 +8400,7 @@
                         <span class="companion-swatch-label">Photo</span>
                     </span>`;
             }).join("");
-            if (photos.length < MAX_COMPANION_PHOTOS && clickHandler === "selectCompanion") {
+            if (photos.length < MAX_COMPANION_PHOTOS) {
                 html += `
                     <span class="companion-swatch-wrap">
                         <span class="companion-swatch" data-click="triggerCompanionCustomImageUpload" title="Upload a new photo">
@@ -8378,61 +8422,47 @@
             // this call is safe (a harmless no-op re-render) either way.
             renderMonthlyTrendMascotIcon();
         }
-        // v394: own full page now (page-companion).
-        async function navigateToCompanionPage() {
+        // v394: own full page now (page-companion); v397: page merged with what used to be the
+        // separate Monthly Trend Mascot page — `target` ("companion" or "trend") picks which of
+        // the two settings the merged toggle/grid opens on, defaulting to the Net Worth card one.
+        async function navigateToCompanionPage(target = "companion") {
             workspaceScrollY = window.scrollY;
             showPage("page-companion");
             window.scrollTo(0, 0);
             pushVirtualState("companion");
+            applyMascotTargetUI(target);
             await buildCompanionSwatchGrid();
         }
-        // v382: sibling picker to selectCompanion/navigateToCompanionPage/buildCompanionSwatchGrid
-        // above, for the independent Monthly Trend Mascot setting — same shape, writing to
+        // v382: sibling picker to selectCompanion/buildCompanionSwatchGrid above, for the
+        // independent Monthly Trend Mascot setting — same shape, writing to
         // MONTHLY_TREND_MASCOT_SETTINGS_KEY instead of COMPANION_SETTINGS_KEY, and with a leading
         // "Match Companion" swatch (id "match") that isn't in the COMPANIONS list itself since it
-        // has no meaning for the Companion picker.
+        // has no meaning for the Companion picker. v397: both pickers render into the same
+        // #companionSwatchGrid now (see buildCompanionSwatchGrid()'s mascotSettingsTarget branch),
+        // so this updates `.selected` there too, not a separate #monthlyTrendMascotSwatchGrid
+        // (deleted along with the standalone page).
         async function selectMonthlyTrendMascot(el) {
             const id = el.dataset.petId;
             try { await writeDB(STORES.SETTINGS, { key: MONTHLY_TREND_MASCOT_SETTINGS_KEY, value: id }); } catch (e) {}
-            document.querySelectorAll("#monthlyTrendMascotSwatchGrid .companion-swatch").forEach(s => s.classList.toggle("selected", s.dataset.petId === id));
+            document.querySelectorAll("#companionSwatchGrid .companion-swatch").forEach(s => s.classList.toggle("selected", s.dataset.petId === id));
             renderMonthlyTrendMascotIcon();
-        }
-        async function buildMonthlyTrendMascotSwatchGrid() {
-            const grid = document.getElementById("monthlyTrendMascotSwatchGrid");
-            if (!grid) return;
-            const selectedId = await getSavedMonthlyTrendMascotId();
-            const matchOption = {
-                id: "match", name: "Match Companion", short: "🔗",
-                svg: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 24a6 6 0 0 1 6-6h6" /><path d="M30 24a6 6 0 0 1-6 6h-6" />
-                    <path d="M20 14l4 4-4 4" /><path d="M28 26l-4 4 4 4" />
-                </svg>`,
-            };
-            grid.innerHTML = await buildMascotSwatchGridHTML(selectedId, "selectMonthlyTrendMascot", [matchOption]);
-        }
-        // v394: own full page now (page-monthlytrendmascot).
-        function navigateToMonthlyTrendMascotPage() {
-            workspaceScrollY = window.scrollY;
-            showPage("page-monthlytrendmascot");
-            window.scrollTo(0, 0);
-            pushVirtualState("monthlytrendmascot");
-            buildMonthlyTrendMascotSwatchGrid();
         }
         // v382: sibling to toggleCompanionSettingsFromDashboard() above — tapping the mascot next
         // to "Monthly Trend" itself (not the title/chevron around it, which still toggles the
         // table — see the span's own data-click in index.html, which shadows the parent's during
-        // event delegation's closest() walk) jumps to its own settings page the same way.
-        // Tapping the mascot itself on the dashboard jumps straight to the Companion page rather
-        // than just being decorative — mirrors how other dashboard chips (e.g. the header
-        // currency pill) already double as shortcuts into Settings.
+        // event delegation's closest() walk) jumps to its own settings the same way.
+        // Tapping the mascot itself on the dashboard jumps straight to Settings rather than just
+        // being decorative — mirrors how other dashboard chips (e.g. the header currency pill)
+        // already double as shortcuts into Settings.
         // v394: was a two-step "navigate to hub, then setTimeout to open the panel there" dance
         // back when these were inline panels on page-datasecurity; now they're real pages so this
-        // is just a direct call.
+        // is just a direct call. v397: both dashboard mascot taps now land on the same merged
+        // Companion page, just defaulting to a different tab of its toggle.
         function toggleCompanionSettingsFromDashboard() {
-            navigateToCompanionPage();
+            navigateToCompanionPage("companion");
         }
         function toggleMonthlyTrendMascotSettingsFromDashboard() {
-            navigateToMonthlyTrendMascotPage();
+            navigateToCompanionPage("trend");
         }
         // v347: one-time upgrade path for anyone who picked a Companion on v341-v346, back when
         // the pick lived in localStorage — copies it into the new IndexedDB settings-store key
@@ -19317,11 +19347,11 @@
             navigateToNetWorthCardStylePage: () => navigateToNetWorthCardStylePage(),
             selectNetWorthCardStyle: (el) => selectNetWorthCardStyle(el),
             navigateToCompanionPage: () => navigateToCompanionPage(),
+            selectMascotTarget: (el) => selectMascotTarget(el),
             toggleCompanionSettingsFromDashboard: () => toggleCompanionSettingsFromDashboard(),
             selectCompanion: (el) => selectCompanion(el),
             triggerCompanionCustomImageUpload: () => triggerCompanionCustomImageUpload(),
             removeCompanionCustomPhoto: (el) => removeCompanionCustomPhoto(el),
-            navigateToMonthlyTrendMascotPage: () => navigateToMonthlyTrendMascotPage(),
             toggleMonthlyTrendMascotSettingsFromDashboard: (el, e) => { e.stopPropagation(); toggleMonthlyTrendMascotSettingsFromDashboard(); },
             selectMonthlyTrendMascot: (el) => selectMonthlyTrendMascot(el),
             triggerAccLogoUpload: () => triggerAccLogoUpload(),

@@ -2312,6 +2312,10 @@
         #monthlyTrendTableChevron.collapsed { transform: rotate(-90deg); }
         .util-row { display: flex; gap: 8px; margin-top: 24px; }
         .btn-util { flex: 1; padding: 12px; font-size: 0.8rem; border-radius: 8px; background: var(--chip-bg); border: none; font-weight: 600; cursor: pointer; }
+        /* v397: shared "which spot is this editing" segmented toggle on the merged Companion page
+           (#mascotTargetToggle) — just an .active modifier on the existing plain .btn-util, not a
+           new component. */
+        .btn-util.active { background: var(--primary); color: #fff; }
 
         /* Emoji Icon Picker Grid Design */
         .emoji-picker-container {
@@ -4357,7 +4361,6 @@
             <button class="settings-icon-btn" title="Background Theme" aria-label="Background Theme" data-click="navigateToBgThemePage"><span class="settings-icon-emoji">🎨</span></button>
             <button class="settings-icon-btn" title="Net Worth Card Style" aria-label="Net Worth Card Style" data-click="navigateToNetWorthCardStylePage"><span class="settings-icon-emoji">🎴</span></button>
             <button class="settings-icon-btn" title="Companion" aria-label="Companion" data-click="navigateToCompanionPage"><span class="settings-icon-emoji">🐾</span></button>
-            <button class="settings-icon-btn" title="Monthly Trend Mascot" aria-label="Monthly Trend Mascot" data-click="navigateToMonthlyTrendMascotPage"><span class="settings-icon-emoji">📈</span></button>
             <button class="settings-icon-btn" title="Dashboard Widgets" aria-label="Dashboard Widgets" data-click="navigateToDashboardWidgetsPage"><span class="settings-icon-emoji">📊</span></button>
             <button class="settings-icon-btn" title="Currency Setting" aria-label="Currency Setting" data-click="openCurrencyConfig"><span class="settings-icon-emoji">💱</span></button>
             <button class="settings-icon-btn" title="Default Accounts" aria-label="Default Accounts" data-click="navigateToDefaultAccountsPage"><span class="settings-icon-emoji">💰</span></button>
@@ -4440,12 +4443,16 @@
     </div>
 
     <!-- ================= PAGE: COMPANION (v341; split into own page v394) ================= -->
+    <!-- ================= PAGE: COMPANION (v341; split into own page v394; merged with Monthly
+         Trend Mascot v397 — both pickers draw from the same "My Photos" library, so showing that
+         library twice on two separate pages was pure duplication. A small segmented toggle now
+         picks which spot (Net Worth card / Monthly Trend title) the one grid below applies to. -->
     <div id="page-companion" class="page hidden">
         <div class="nav-header">
             <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
             <div>
                 <h3 style="font-weight:800; font-size:1.2rem;">Companion</h3>
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Optional mascot for the Net Worth card</p>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Mascot for the Net Worth card &amp; Monthly Trend title</p>
             </div>
         </div>
         <div class="settings-split">
@@ -4455,37 +4462,22 @@
                  gutter (see .net-worth-companion / COMPANIONS in ledger.js). Original line-art,
                  not tied to any Background Theme — same translucent-white treatment as the card's
                  Financial Assets/Real Estate chips, so it reads correctly against every Net Worth
-                 Card Style gradient without needing separate light/dark artwork. -->
-            <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">A small mascot next to your Portfolio Net Worth figure. Save up to 20 of your own photos below and switch between them any time — each preview shows how it actually looks on the card. Tap the "×" on a photo to remove it.</p>
+                 Card Style gradient without needing separate light/dark artwork. v382 added an
+                 independent pick for the Monthly Trend title's own mascot (defaulting to "Match
+                 Companion", mirroring this one) — v397 merged both pickers' UI into this one page
+                 since they share the exact same photo library; selectMascotTarget() below just
+                 switches which of the two saved settings the swatch grid is currently editing. -->
+            <div class="util-row" id="mascotTargetToggle" style="margin-top:0;">
+                <button type="button" class="btn-util active" data-click="selectMascotTarget" data-target="companion">Net Worth Card</button>
+                <button type="button" class="btn-util" data-click="selectMascotTarget" data-target="trend">Monthly Trend</button>
+            </div>
+            <p id="mascotTargetHint" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">A small mascot next to your Portfolio Net Worth figure. Save up to 20 of your own photos below and switch between them any time — each preview shows how it actually looks on the card. Tap the "×" on a photo to remove it.</p>
             <div id="companionSwatchGrid"></div>
             <!-- v343: hidden file input behind the "My Photos" group's "＋ Add" tile — same
                  accept="image/*" pattern the transaction-attachment inputs use. No `capture`
                  attribute (unlike the receipt camera input) since a companion photo is just
                  as likely to come from the gallery as the camera. -->
             <input type="file" id="companionCustomImageInput" accept="image/*" style="display:none;" data-change="handleCompanionCustomImageSelected">
-        </div>
-        </div>
-    </div>
-
-    <!-- ================= PAGE: MONTHLY TREND MASCOT (v382; split into own page v394) ================= -->
-    <div id="page-monthlytrendmascot" class="page hidden">
-        <div class="nav-header">
-            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
-            <div>
-                <h3 style="font-weight:800; font-size:1.2rem;">Monthly Trend Mascot</h3>
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Mascot for the Monthly Trend title</p>
-            </div>
-        </div>
-        <div class="settings-split">
-        <div class="settings-icon-rail-slot"></div>
-        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:10px;">
-            <!-- v382: independent mascot pick for the Monthly Trend title, decoupled from the
-                 Companion above on request — previously this was a read-only mirror of whatever
-                 Companion had picked, with no way to show something different in the two spots.
-                 Defaults to "Match Companion" (mirrors the setting above, same as before) unless
-                 changed here. -->
-            <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">The small mascot next to the "Monthly Trend" title on your Dashboard. Leave this on "Match Companion" to always mirror the pick above, or choose something different just for this spot.</p>
-            <div id="monthlyTrendMascotSwatchGrid"></div>
         </div>
         </div>
     </div>
