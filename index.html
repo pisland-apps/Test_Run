@@ -4328,7 +4328,7 @@
                  rail slots. -->
             <button class="settings-icon-btn" title="Net Worth Card" aria-label="Net Worth Card" data-click="navigateToNetWorthCardStylePage"><span class="settings-icon-emoji">🎴</span></button>
             <button class="settings-icon-btn" title="Dashboard Widgets" aria-label="Dashboard Widgets" data-click="navigateToDashboardWidgetsPage"><span class="settings-icon-emoji">📊</span></button>
-            <button class="settings-icon-btn" title="Currency Setting" aria-label="Currency Setting" data-click="openCurrencyConfig"><span class="settings-icon-emoji">💱</span></button>
+            <button class="settings-icon-btn" title="Currency Setting" aria-label="Currency Setting" data-click="navigateToCurrencyConfigPage"><span class="settings-icon-emoji">💱</span></button>
             <button class="settings-icon-btn" title="Manage Categories" aria-label="Manage Categories" data-click="navigateToCategoriesPage"><span class="settings-icon-emoji">🏷️</span></button>
             <button class="settings-icon-btn" title="Transaction Templates" aria-label="Transaction Templates" data-click="navigateToTemplatesPage"><span class="settings-icon-emoji">🧾</span></button>
             <button class="settings-icon-btn" title="Manage Tags" aria-label="Manage Tags" data-click="navigateToTagsPage"><span class="settings-icon-emoji">🔖</span></button>
@@ -4601,6 +4601,49 @@
         </div>
     </div>
 
+    <!-- ================= PAGE: CURRENCY SETTING (v405: was #currencyModal, a popup dialog that
+         broke away from the rest of Settings' full-page/rail pattern — now matches
+         Background Theme/Net Worth Card/Dashboard Widgets: single "← Back" row, icon rail
+         cloned in via cloneSettingsIconRails(), content living directly in the column instead of
+         a centered overlay sheet. Same ids/handlers as the old modal (baseCurrencySelect,
+         fxRatesFormContainer, fetchLiveFxRates, saveFxRates, etc.) — only the container changed,
+         not the underlying currency logic. -->
+    <div id="page-currencyconfig" class="page hidden">
+        <div class="nav-header">
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
+            <div>
+                <h3 style="font-weight:800; font-size:1.2rem;">Currency Setting</h3>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Base currency &amp; exchange rates</p>
+            </div>
+        </div>
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:10px; padding-bottom:24px;">
+            <div class="widget-setting-card">
+                <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">MAIN BASE CURRENCY</p>
+                <select id="baseCurrencySelect" class="form-input" data-change="handleBaseCurrencyChange">
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="SGD">SGD (S$)</option>
+                    <option value="MYR">MYR (RM)</option>
+                </select>
+            </div>
+            <div class="widget-setting-card">
+                <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">EXCHANGE RATES</p>
+                <!-- Fetch Live Rates (v67) — same open.er-api.com source as the Wealth Planner app's
+                     own "Fetch Live Rates" button, so both apps' rates agree when fetched around the
+                     same time instead of drifting apart from manually-typed values. Only fills the
+                     input fields below; still requires "Save FX Values" to actually apply. -->
+                <button type="button" id="fetchFxRatesBtn" data-click="fetchLiveFxRates" class="btn-util" style="width:100%; margin-bottom:10px;">🔄 Fetch Live Rates</button>
+                <p id="fetchFxRatesStatus" style="font-size:0.7rem; color:var(--text-muted); margin:-4px 0 10px; min-height:1em;"></p>
+                <div id="fxRatesFormContainer"></div>
+                <button type="button" data-click="saveFxRates" class="submit-btn" style="margin-top:10px;">Save FX Values</button>
+            </div>
+        </div>
+        </div>
+    </div>
+
     <!-- (Default Accounts merged into page-categories, v398 — see "Default Accounts" block
          at the top of that page.) -->
     <!-- ================= PAGE: DAILY NAV UPDATE (manual fund price entry, applies to all held funds) ================= -->
@@ -4687,36 +4730,9 @@
     </div> <!-- /contentRow -->
 
     <!-- ================= SYSTEM MODALS ================= -->
-    <!-- MODAL: Advanced Multi-Currency Core Configuration -->
-    <div class="modal" id="currencyModal">
-        <div class="modal-sheet">
-            <div class="modal-header" style="display:flex; justify-content:space-between; margin-bottom:12px;">
-                <h3 style="font-weight: 800;">Global Currency Settings</h3>
-                <button data-click="closeModal" data-modal="currencyModal" style="background:none; border:none; font-size: 1.5rem; padding: 8px;">&times;</button>
-            </div>
-            <div class="form-row">
-                <label>Main Base Currency</label>
-                <select id="baseCurrencySelect" class="form-input" data-change="handleBaseCurrencyChange">
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                    <option value="SGD">SGD (S$)</option>
-                    <option value="MYR">MYR (RM)</option>
-                </select>
-            </div>
-            <p style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; margin-bottom: 8px; text-transform: uppercase;">Exchange Rates</p>
-            <!-- Fetch Live Rates (v67) — same open.er-api.com source as the Wealth Planner app's
-                 own "Fetch Live Rates" button, so both apps' rates agree when fetched around the
-                 same time instead of drifting apart from manually-typed values. Only fills the
-                 input fields below; still requires "Save FX Values" to actually apply. -->
-            <button type="button" id="fetchFxRatesBtn" data-click="fetchLiveFxRates" class="btn-util" style="width:100%; margin-bottom:10px;">🔄 Fetch Live Rates</button>
-            <p id="fetchFxRatesStatus" style="font-size:0.7rem; color:var(--text-muted); margin:-4px 0 10px; min-height:1em;"></p>
-            <div id="fxRatesFormContainer"></div>
-            <button type="button" data-click="saveFxRates" class="submit-btn" style="margin-top: 10px;">Save FX Values</button>
-        </div>
-    </div>
-
-    <!-- MODAL: Accounts Subsystem Manager -->
+    <!-- (Global Currency Settings modal removed v405 — now page-currencyconfig, a full Settings
+         page reached via the 💱 rail icon, matching every other Settings item instead of popping
+         out as its own overlay. See that page for the current markup.) -->
     <div class="modal" id="accountsModal">
         <div class="modal-sheet">
             <div class="modal-header" style="display:flex; justify-content:space-between; margin-bottom:12px;">

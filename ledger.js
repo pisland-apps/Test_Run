@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v404";
+        const APP_VERSION = "v405";
         const APP_VERSION_DATE = "2026-09-17";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -2005,9 +2005,12 @@
             // page-ids for those either now.
             // v403: Companion's own page was folded into page-networthcardstyle (both only ever
             // customized the Portfolio Net Worth card) — no separate page-id for it either now.
+            // v405: Currency Setting used to be #currencyModal, a popup dialog rather than a
+            // page — it's page-currencyconfig now, bucketed here with the others.
             const bgThemePage = document.getElementById("page-bgtheme");
             const netWorthCardStylePage = document.getElementById("page-networthcardstyle");
             const dashboardWidgetsPage = document.getElementById("page-dashboardwidgets");
+            const currencyConfigPage = document.getElementById("page-currencyconfig");
             const memberPage = document.getElementById("page-member");
             const fundActivityPage = document.getElementById("page-fundactivity");
             const currencyActivityPage = document.getElementById("page-currencyactivity");
@@ -2053,6 +2056,7 @@
                 !bgThemePage.classList.contains("hidden") ||
                 !netWorthCardStylePage.classList.contains("hidden") ||
                 !dashboardWidgetsPage.classList.contains("hidden") ||
+                !currencyConfigPage.classList.contains("hidden") ||
                 !inventoryPage.classList.contains("hidden") ||
                 !plannedPaymentsPage.classList.contains("hidden")
             ) {
@@ -3019,7 +3023,7 @@
         // --- SPA NAVIGATION PIPELINE ---
         // Every top-level page div's id — used by showPage() to hide all but the target,
         // so adding a new page never risks leaving a stale one visible underneath.
-        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-dashboardwidgets", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
+        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-dashboardwidgets", "page-currencyconfig", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
         function showPage(id) {
             APP_PAGE_IDS.forEach(p => {
                 const el = document.getElementById(p);
@@ -5200,13 +5204,19 @@
         }
 
         // --- CURRENCY SETTINGS CONTROLS ---
-        function openCurrencyConfig() {
+        // v405: own full page now (page-currencyconfig) — used to be openCurrencyConfig()
+        // opening #currencyModal as a popup, inconsistent with every other Settings item's
+        // full-page treatment. Same setup logic, just showPage() instead of openModal().
+        function navigateToCurrencyConfigPage() {
+            workspaceScrollY = window.scrollY;
+            showPage("page-currencyconfig");
+            window.scrollTo(0, 0);
+            pushVirtualState("currencyconfig");
             const baseSelect = document.getElementById("baseCurrencySelect");
             baseSelect.innerHTML = Object.keys(fxRates).map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
             baseSelect.value = baseCurrency;
             renderFxRatesInputs();
             document.getElementById("fetchFxRatesStatus").textContent = "";
-            openModal("currencyModal");
         }
 
         // Renders one row per non-base currency in `rates` (defaults to the saved fxRates when
@@ -5285,7 +5295,10 @@
             }
 
             const settingsBasePillEl = document.getElementById("settingsBasePill"); if (settingsBasePillEl) settingsBasePillEl.textContent = baseCurrency;
-            closeModal("currencyModal");
+            // v405: page-currencyconfig is a full page now, not a modal — stay put instead of
+            // closing anything; showToast() replaces the old closeModal("currencyModal") as the
+            // save confirmation.
+            showToast("Currency settings saved");
             renderApp();
         }
 
@@ -19236,7 +19249,7 @@
             handleChangePasscodeSubmit: () => handleChangePasscodeSubmit(),
             openResetAppDataModal: () => openResetAppDataModal(),
             handleResetAppDataSubmit: () => handleResetAppDataSubmit(),
-            openCurrencyConfig: () => openCurrencyConfig(),
+            navigateToCurrencyConfigPage: () => navigateToCurrencyConfigPage(),
             lockAppNow: () => lockAppNow(),
             navigateToSavingsPage: () => navigateToSavingsPage(),
             handleSavingsBackClick: () => handleSavingsBackClick(),
