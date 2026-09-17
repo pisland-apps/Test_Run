@@ -4394,13 +4394,28 @@
             <button class="settings-icon-btn" title="Companion" aria-label="Companion" data-click="navigateToCompanionPage"><span class="settings-icon-emoji">🐾</span></button>
             <button class="settings-icon-btn" title="Dashboard Widgets" aria-label="Dashboard Widgets" data-click="navigateToDashboardWidgetsPage"><span class="settings-icon-emoji">📊</span></button>
             <button class="settings-icon-btn" title="Currency Setting" aria-label="Currency Setting" data-click="openCurrencyConfig"><span class="settings-icon-emoji">💱</span></button>
-            <button class="settings-icon-btn" title="Manage Members" aria-label="Manage Members" data-click="sidebarGo" data-target="members"><span class="settings-icon-emoji">👪</span></button>
             <button class="settings-icon-btn" title="Manage Categories" aria-label="Manage Categories" data-click="navigateToCategoriesPage"><span class="settings-icon-emoji">🏷️</span></button>
             <button class="settings-icon-btn" title="Transaction Templates" aria-label="Transaction Templates" data-click="navigateToTemplatesPage"><span class="settings-icon-emoji">🧾</span></button>
             <button class="settings-icon-btn" title="Manage Tags" aria-label="Manage Tags" data-click="navigateToTagsPage"><span class="settings-icon-emoji">🔖</span></button>
-            <button class="settings-icon-btn" title="Backup & Restore" aria-label="Backup & Restore" data-click="sidebarGo" data-target="backup"><span class="settings-icon-emoji">💾</span></button>
-            <button class="settings-icon-btn" title="Auto-Lock" aria-label="Auto-Lock" data-click="sidebarGo" data-target="autolock"><span class="settings-icon-emoji">⏱️</span></button>
             <button class="settings-icon-btn" title="App Local Database" aria-label="App Local Database" data-click="sidebarGo" data-target="database"><span class="settings-icon-emoji">🗄️</span></button>
+        </div>
+        <!-- v401: page-datasecurity's detail pane used to be permanently blank (nothing selects
+             itself by default on first opening Setting) — Manage Members/Backup & Restore/
+             Auto-Lock moved here as plain nav rows instead of living as icons on the rail, so
+             opening Setting now shows something useful right away instead of an empty pane. -->
+        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:10px;">
+            <div class="config-item" style="cursor:pointer;" data-click="sidebarGo" data-target="members">
+                <span style="display:flex; align-items:center; gap:12px; font-weight:700;"><span style="font-size:1.3rem;">👪</span> Manage Members</span>
+                <span style="color:var(--text-muted); font-weight:700;">›</span>
+            </div>
+            <div class="config-item" style="cursor:pointer;" data-click="sidebarGo" data-target="backup">
+                <span style="display:flex; align-items:center; gap:12px; font-weight:700;"><span style="font-size:1.3rem;">💾</span> Backup &amp; Restore</span>
+                <span style="color:var(--text-muted); font-weight:700;">›</span>
+            </div>
+            <div class="config-item" style="cursor:pointer;" data-click="sidebarGo" data-target="autolock">
+                <span style="display:flex; align-items:center; gap:12px; font-weight:700;"><span style="font-size:1.3rem;">⏱️</span> Auto-Lock</span>
+                <span style="color:var(--text-muted); font-weight:700;">›</span>
+            </div>
         </div>
         </div>
     </div>
