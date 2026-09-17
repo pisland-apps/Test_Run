@@ -564,6 +564,17 @@
             min-width: 0; /* allow grid children to shrink below content width */
             box-shadow: var(--card-shadow);
         }
+        /* v398: gives each widget group on the Dashboard Widgets settings page its own visually
+           separated card (matches the app's existing card look/shadow) so the page reads as
+           distinct sections instead of one continuous scroll of labels. */
+        .widget-setting-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1.5px solid var(--border-color);
+            border-top-color: var(--card-top-border);
+            padding: 14px 16px;
+            box-shadow: var(--card-shadow);
+        }
         .report-card-mini-header {
             display: flex;
             justify-content: space-between;
@@ -4503,7 +4514,7 @@
             <!-- v386: Monthly Trend is now also its own Reports page, so it no longer has to be
                  on the Dashboard — off here just hides #monthlyTrendDashboardSlot; the block
                  itself (and all its state) stays live and fully usable at Reports > Monthly Trend. -->
-            <div>
+            <div class="widget-setting-card">
                 <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">MONTHLY TREND</p>
                 <div class="toggle-switch-row" style="margin-top:0;">
                     <span class="toggle-switch-label">Show on Dashboard</span>
@@ -4518,7 +4529,7 @@
                  own mini progress row on the Dashboard's Remaining Budget widget, which otherwise
                  only ever shows the overall Monthly/Yearly total. Pool is built live from the
                  current month's budget record — see renderDashboardBudgetCategoryToggles(). -->
-            <div>
+            <div class="widget-setting-card">
                 <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">BUDGET WIDGET</p>
                 <div class="toggle-switch-row" style="margin-top:0;">
                     <span class="toggle-switch-label">Show on Dashboard</span>
@@ -4531,17 +4542,19 @@
                 <div id="dashboardBudgetCategoryToggles" style="display:flex; flex-direction:column; gap:2px;"></div>
                 <p id="dashboardBudgetCategoryTogglesEmpty" style="font-size:0.8rem; color:var(--text-muted); display:none;">No category budgets set for this month yet — add some on the Budget page first.</p>
             </div>
-            <div class="form-row" style="margin-bottom:0;">
-                <label>Order on Dashboard</label>
-                <button type="button" id="dashboardWidgetOrderSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="dashboardWidgetOrderSelect" data-title="Order on Dashboard">
-                    <span id="dashboardWidgetOrderSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                </button>
-                <select id="dashboardWidgetOrderSelect" style="display:none;" data-change="handleDashboardWidgetOrderChange">
-                    <option value="accounts-first">Accounts, then Recent Transactions</option>
-                    <option value="recenttx-first">Recent Transactions, then Accounts</option>
-                </select>
+            <div class="widget-setting-card">
+                <div class="form-row" style="margin-bottom:0;">
+                    <label>Order on Dashboard</label>
+                    <button type="button" id="dashboardWidgetOrderSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="dashboardWidgetOrderSelect" data-title="Order on Dashboard">
+                        <span id="dashboardWidgetOrderSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                    </button>
+                    <select id="dashboardWidgetOrderSelect" style="display:none;" data-change="handleDashboardWidgetOrderChange">
+                        <option value="accounts-first">Accounts, then Recent Transactions</option>
+                        <option value="recenttx-first">Recent Transactions, then Accounts</option>
+                    </select>
+                </div>
             </div>
-            <div>
+            <div class="widget-setting-card">
                 <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">RECENT TRANSACTIONS WIDGET</p>
                 <div class="form-row" style="margin-bottom:0;">
                     <label>Show</label>
@@ -4572,7 +4585,7 @@
                     <select id="recentTxCountSelect" style="display:none;" data-change="handleRecentTxSettingChange"></select>
                 </div>
             </div>
-            <div>
+            <div class="widget-setting-card">
                 <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">ACCOUNTS WIDGET</p>
                 <div class="form-row" style="margin-bottom:0;">
                     <label>Number of items shown</label>
