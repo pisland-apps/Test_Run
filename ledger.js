@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v394";
+        const APP_VERSION = "v395";
         const APP_VERSION_DATE = "2026-09-16";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -1987,11 +1987,10 @@
             const autolockPage = document.getElementById("page-autolock");
             const databasePage = document.getElementById("page-database");
             // v278: bucketed with databasePage below rather than given its own dedicated
-            // handleAttachmentReviewBackClick() — matches the existing shortcut already used for
-            // databasePage itself (whose on-screen "← Back" goes to Data & Security, yet hardware
-            // back here still falls through to navigateToWorkspace() same as this whole bucket),
-            // so hardware back from this new page follows that same established precedent rather
-            // than introducing a one-off exception.
+            // handleAttachmentReviewBackClick() — matches databasePage itself, whose on-screen
+            // "← Back" and hardware/gesture back both land on navigateToWorkspace() (as of v394;
+            // previously the on-screen button went to Data & Security while hardware back here
+            // already jumped straight to the Dashboard — that mismatch is what v394 fixed).
             const attachmentReviewPage = document.getElementById("page-attachment-review");
             const totalSummaryPage = document.getElementById("page-total-summary");
             const monthlyTrendPage = document.getElementById("page-monthly-trend");
@@ -2002,6 +2001,17 @@
             const currencyReportPage = document.getElementById("page-currency-report");
             const navUpdatePage = document.getElementById("page-navupdate");
             const dataSecurityPage = document.getElementById("page-datasecurity");
+            // v394: the 6 items that used to be inline panels on page-datasecurity (Background
+            // Theme/Net Worth Card Style/Companion/Monthly Trend Mascot/Dashboard Widgets/Default
+            // Accounts) are now their own pages, bucketed below with Categories/Backup/etc. — same
+            // treatment as those, since their on-screen "← Back" also now goes straight to
+            // navigateToWorkspace() (see the "v394" comment on that bucket below).
+            const bgThemePage = document.getElementById("page-bgtheme");
+            const netWorthCardStylePage = document.getElementById("page-networthcardstyle");
+            const companionPage = document.getElementById("page-companion");
+            const monthlyTrendMascotPage = document.getElementById("page-monthlytrendmascot");
+            const dashboardWidgetsPage = document.getElementById("page-dashboardwidgets");
+            const defaultAccountsPage = document.getElementById("page-defaultaccounts");
             const membersPage = document.getElementById("page-members");
             const memberPage = document.getElementById("page-member");
             const fundActivityPage = document.getElementById("page-fundactivity");
@@ -2016,7 +2026,10 @@
             } else if (!fundActivityPage.classList.contains("hidden")) {
                 handleFundActivityBackClick();
             } else if (!membersPage.classList.contains("hidden")) {
-                navigateToDataSecurityPage();
+                // v394: was navigateToDataSecurityPage() — Manage Members' on-screen "← Back" now
+                // goes straight to the Dashboard (matches every other Settings sub-page's rail-
+                // driven navigation, see the bucket below), so hardware/gesture back matches it.
+                navigateToWorkspace();
             } else if (!memberPage.classList.contains("hidden")) {
                 navigateToWorkspace();
             } else if (!accountsPage.classList.contains("hidden")) {
@@ -2049,6 +2062,12 @@
                 !currencyReportPage.classList.contains("hidden") ||
                 !navUpdatePage.classList.contains("hidden") ||
                 !dataSecurityPage.classList.contains("hidden") ||
+                !bgThemePage.classList.contains("hidden") ||
+                !netWorthCardStylePage.classList.contains("hidden") ||
+                !companionPage.classList.contains("hidden") ||
+                !monthlyTrendMascotPage.classList.contains("hidden") ||
+                !dashboardWidgetsPage.classList.contains("hidden") ||
+                !defaultAccountsPage.classList.contains("hidden") ||
                 !inventoryPage.classList.contains("hidden") ||
                 !plannedPaymentsPage.classList.contains("hidden")
             ) {
@@ -2445,31 +2464,27 @@
             navigateToTagReportForTag(el.dataset.name);
         }
 
-        // v224: single toggle for the relocated Dashboard Widgets settings panel (Setting hub) —
-        // replaces the two separate inline "⚙ Settings" buttons that used to sit directly on the
-        // Dashboard's Accounts/Recent Transactions widgets. Syncs the order <select> to the
-        // current setting each time the panel opens, same as toggleBgThemeSettings() does for
-        // its swatch grid.
-        function toggleDashboardWidgetsSettings() {
-            ensureOnDataSecurityPage();
-            const panel = document.getElementById("dashboardWidgetsSettingsPanel");
-            if (!panel) return;
-            const isHidden = panel.style.display === "none";
-            if (isHidden) {
-                const orderSel = document.getElementById("dashboardWidgetOrderSelect");
-                if (orderSel) orderSel.value = dashboardWidgetOrder;
-                syncAccountPickerButtonText("dashboardWidgetOrderSelect");
-                const trendToggle = document.getElementById("dashboardMonthlyTrendToggle");
-                if (trendToggle) trendToggle.checked = showMonthlyTrendOnDashboard;
-                const budgetToggle = document.getElementById("dashboardBudgetWidgetToggle");
-                if (budgetToggle) budgetToggle.checked = dashboardBudgetWidgetEnabled;
-                renderDashboardBudgetCategoryToggles();
-                enterSettingsDetail("dashboardWidgetsSettingsPanel", "Dashboard Widgets");
-                panel.style.display = "flex";
-            } else {
-                panel.style.display = "none";
-                backToSettingsGrid();
-            }
+        // v224: settings for the Dashboard's widgets (Accounts/Recent Transactions/Monthly
+        // Trend/Budget) — replaces the two separate inline "⚙ Settings" buttons that used to sit
+        // directly on the Dashboard's Accounts/Recent Transactions widgets. Syncs the order
+        // <select> and toggles to the current setting each time the page opens.
+        // v394: this used to be a toggle*Settings() function that expanded/collapsed an inline
+        // panel on page-datasecurity itself; now page-dashboardwidgets is its own full page (see
+        // the other 6 navigateTo*Page() functions below for the same change) so this just does
+        // the same field-syncing then navigates there, no open/close branching needed.
+        function navigateToDashboardWidgetsPage() {
+            workspaceScrollY = window.scrollY;
+            showPage("page-dashboardwidgets");
+            window.scrollTo(0, 0);
+            pushVirtualState("dashboardwidgets");
+            const orderSel = document.getElementById("dashboardWidgetOrderSelect");
+            if (orderSel) orderSel.value = dashboardWidgetOrder;
+            syncAccountPickerButtonText("dashboardWidgetOrderSelect");
+            const trendToggle = document.getElementById("dashboardMonthlyTrendToggle");
+            if (trendToggle) trendToggle.checked = showMonthlyTrendOnDashboard;
+            const budgetToggle = document.getElementById("dashboardBudgetWidgetToggle");
+            if (budgetToggle) budgetToggle.checked = dashboardBudgetWidgetEnabled;
+            renderDashboardBudgetCategoryToggles();
         }
 
         async function handleDashboardBudgetWidgetToggleChange(el) {
@@ -2526,25 +2541,18 @@
             await renderApp();
         }
 
-        // v227: single toggle for the relocated Default Payment/Receive Account settings panel
-        // (Setting hub) — these used to live in a card at the top of the Accounts page; moved
-        // here since they're app-wide preferences, not something specific to browsing accounts.
-        // Re-populates both pickers from the accounts list each time the panel opens, same as
-        // toggleDashboardWidgetsSettings() does for its own select.
-        async function toggleDefaultAccountsSettings() {
-            ensureOnDataSecurityPage();
-            const panel = document.getElementById("defaultAccountsSettingsPanel");
-            if (!panel) return;
-            const isHidden = panel.style.display === "none";
-            if (isHidden) {
-                await populateDefaultPaymentAccountSelect();
-                await populateDefaultReceiveAccountSelect();
-                enterSettingsDetail("defaultAccountsSettingsPanel", "Default Accounts");
-                panel.style.display = "flex";
-            } else {
-                panel.style.display = "none";
-                backToSettingsGrid();
-            }
+        // v227: settings for the app-wide Default Payment/Receive Account — these used to live in
+        // a card at the top of the Accounts page; moved here since they're app-wide preferences,
+        // not something specific to browsing accounts. Re-populates both pickers from the
+        // accounts list each time the page opens.
+        // v394: own full page now, see navigateToDashboardWidgetsPage() above for why.
+        async function navigateToDefaultAccountsPage() {
+            workspaceScrollY = window.scrollY;
+            showPage("page-defaultaccounts");
+            window.scrollTo(0, 0);
+            pushVirtualState("defaultaccounts");
+            await populateDefaultPaymentAccountSelect();
+            await populateDefaultReceiveAccountSelect();
         }
 
         // v224: persists the chosen Dashboard widget order and re-renders so it takes effect
@@ -3036,7 +3044,7 @@
         // --- SPA NAVIGATION PIPELINE ---
         // Every top-level page div's id — used by showPage() to hide all but the target,
         // so adding a new page never risks leaving a stale one visible underneath.
-        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-backup", "page-autolock", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-members", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
+        const APP_PAGE_IDS = ["page-workspace", "page-ledger", "page-savings", "page-networth-statement", "page-accounts", "page-categories", "page-templates", "page-tags", "page-tag-report", "page-budget", "page-backup", "page-autolock", "page-database", "page-attachment-review", "page-total-summary", "page-monthly-trend", "page-spending-breakdown", "page-income-breakdown", "page-portfolio-report", "page-owner-networth-report", "page-currency-report", "page-datasecurity", "page-bgtheme", "page-networthcardstyle", "page-companion", "page-monthlytrendmascot", "page-dashboardwidgets", "page-defaultaccounts", "page-members", "page-member", "page-navupdate", "page-fundactivity", "page-currencyactivity", "page-inventory", "page-plannedpayments"];
         function showPage(id) {
             APP_PAGE_IDS.forEach(p => {
                 const el = document.getElementById(p);
@@ -5027,9 +5035,6 @@
             sidebarNavPending = true;
             workspaceScrollY = window.scrollY;
             showPage("page-datasecurity");
-            // v389: always land on the icon grid, not whatever detail panel happened to be open
-            // last time — covers a device/browser back button returning here mid-detail.
-            backToSettingsGrid();
             window.scrollTo(0, 0);
             pushVirtualState("datasecurity");
         }
@@ -5200,7 +5205,7 @@
             else if (target === "savings") navigateToSavingsPage();
             else if (target === "accounts") navigateToAccountsPage();
             else if (target === "categories") navigateToCategoriesPage();
-            else if (target === "backup") navigateToBackupPage();
+            else if (target === "backup") navigateToBackupPage("workspace");
             else if (target === "members") navigateToMembersPage();
             else if (target === "autolock") navigateToAutoLockPage();
             else if (target === "database") navigateToDatabasePage();
@@ -7988,50 +7993,21 @@
             buildBgThemeSwatchGrid();
         }
 
-        // v392: icon column + detail pane now sit side by side and the column always stays
-        // visible (previously the column hid while a detail panel was open, requiring "‹ Back"
-        // before switching to a different item). enterSettingsDetail(panelId, title) hides any
-        // other open panel and reveals #settingsDetailView with the given title;
-        // backToSettingsGrid() clears the pane back to empty (used by the pane's own "‹ Back",
-        // and by re-clicking an already-open icon to collapse it). navigateToDataSecurityPage()
-        // also calls backToSettingsGrid() on every fresh entry to Setting, so it starts empty
-        // rather than showing whatever was last open.
-        function enterSettingsDetail(panelId, title) {
-            document.querySelectorAll("#settingsDetailView .settings-detail-panel").forEach(p => {
-                if (p.id !== panelId) p.style.display = "none";
-            });
-            const detail = document.getElementById("settingsDetailView");
-            if (detail) detail.classList.remove("hidden");
-            const titleEl = document.getElementById("settingsDetailTitle");
-            if (titleEl) titleEl.textContent = title || "";
-        }
-        function backToSettingsGrid() {
-            document.querySelectorAll("#settingsDetailView .settings-detail-panel").forEach(p => { p.style.display = "none"; });
-            const detail = document.getElementById("settingsDetailView");
-            if (detail) detail.classList.add("hidden");
-        }
+        // v394: enterSettingsDetail/backToSettingsGrid/ensureOnDataSecurityPage (v392/v393) are
+        // gone — the 6 swatch-picker items (Background Theme, Net Worth Card Style, Companion,
+        // Monthly Trend Mascot, Dashboard Widgets, Default Accounts) are now full pages of their
+        // own (page-bgtheme etc.), same as Members/Categories/Templates/Tags/Backup/Auto-Lock/
+        // Database always were, instead of panels inside a shared #settingsDetailView on
+        // page-datasecurity. Each has a single "‹ Back" (straight to Dashboard, see
+        // navigateToWorkspace below) and the icon rail cloned in via cloneSettingsIconRails().
 
-        // v393: the 6 swatch-picker panels above (Background Theme, Net Worth Card Style,
-        // Companion, Monthly Trend Mascot, Dashboard Widgets, Default Accounts) all live inside
-        // #settingsDetailView, which only exists on page-datasecurity itself. Now that the icon
-        // rail is also cloned onto the other Settings sub-pages (Members/Categories/Templates/
-        // Tags/Backup/Auto-Lock/Database, see cloneSettingsIconRails()), tapping one of these 6
-        // icons from over there needs to land on page-datasecurity first before the panel can
-        // actually show — each of the 6 toggle*Settings() functions calls this first.
-        function ensureOnDataSecurityPage() {
-            const page = document.getElementById("page-datasecurity");
-            if (page && page.classList.contains("hidden")) {
-                navigateToDataSecurityPage();
-            }
-        }
-
-        // v393: clones the canonical #settingsIconGrid (page-datasecurity's icon rail) into every
-        // ".settings-icon-rail-slot" placeholder on the other Settings sub-pages (Members/
-        // Categories/Templates/Tags/Backup/Auto-Lock/Database) so the rail stays visible no matter
-        // which Settings page you're on, instead of only on page-datasecurity itself. Runs once at
-        // bootstrap — the rail's buttons never change at runtime, so a one-time clone is enough;
-        // no id attributes are cloned (the source grid's own id is only used here, not read
-        // elsewhere), so there's no collision from having several copies of it in the DOM.
+        // v393/v394: clones the canonical #settingsIconGrid (page-datasecurity's icon rail) into
+        // every ".settings-icon-rail-slot" placeholder on every other Settings page so the rail
+        // stays visible no matter which Settings page you're on, instead of only on
+        // page-datasecurity itself. Runs once at bootstrap — the rail's buttons never change at
+        // runtime, so a one-time clone is enough; no id attributes are cloned (the source grid's
+        // own id is only used here, not read elsewhere), so there's no collision from having
+        // several copies of it in the DOM.
         function cloneSettingsIconRails() {
             const source = document.getElementById("settingsIconGrid");
             if (!source) return;
@@ -8041,18 +8017,13 @@
             });
         }
 
-        function toggleBgThemeSettings() {
-            ensureOnDataSecurityPage();
-            const panel = document.getElementById("bgThemeSettingsPanel");
-            const isHidden = panel.style.display === "none";
-            if (isHidden) {
-                buildBgThemeSwatchGrid();
-                enterSettingsDetail("bgThemeSettingsPanel", "Background Theme");
-                panel.style.display = "flex";
-            } else {
-                panel.style.display = "none";
-                backToSettingsGrid();
-            }
+        // v394: own full page now (page-bgtheme), see the block comment above.
+        function navigateToBgThemePage() {
+            workspaceScrollY = window.scrollY;
+            showPage("page-bgtheme");
+            window.scrollTo(0, 0);
+            pushVirtualState("bgtheme");
+            buildBgThemeSwatchGrid();
         }
 
         // --- v326: Net Worth Card Style (Setting page) --------------------------------------
@@ -8105,18 +8076,13 @@
             applyNetWorthCardStyle(el.dataset.styleId);
             document.querySelectorAll("#netWorthCardStyleSwatchGrid .color-swatch").forEach(s => s.classList.toggle("selected", s.dataset.styleId === el.dataset.styleId));
         }
-        function toggleNetWorthCardStyleSettings() {
-            ensureOnDataSecurityPage();
-            const panel = document.getElementById("netWorthCardStyleSettingsPanel");
-            const isHidden = panel.style.display === "none";
-            if (isHidden) {
-                buildNetWorthCardStyleSwatchGrid();
-                enterSettingsDetail("netWorthCardStyleSettingsPanel", "Net Worth Card Style");
-                panel.style.display = "flex";
-            } else {
-                panel.style.display = "none";
-                backToSettingsGrid();
-            }
+        // v394: own full page now (page-networthcardstyle).
+        function navigateToNetWorthCardStylePage() {
+            workspaceScrollY = window.scrollY;
+            showPage("page-networthcardstyle");
+            window.scrollTo(0, 0);
+            pushVirtualState("networthcardstyle");
+            buildNetWorthCardStyleSwatchGrid();
         }
 
         // --- v341: Companion (Setting page) --------------------------------------------------
@@ -8386,20 +8352,15 @@
             // this call is safe (a harmless no-op re-render) either way.
             renderMonthlyTrendMascotIcon();
         }
-        async function toggleCompanionSettings() {
-            ensureOnDataSecurityPage();
-            const panel = document.getElementById("companionSettingsPanel");
-            const isHidden = panel.style.display === "none";
-            if (isHidden) {
-                await buildCompanionSwatchGrid();
-                enterSettingsDetail("companionSettingsPanel", "Companion");
-                panel.style.display = "flex";
-            } else {
-                panel.style.display = "none";
-                backToSettingsGrid();
-            }
+        // v394: own full page now (page-companion).
+        async function navigateToCompanionPage() {
+            workspaceScrollY = window.scrollY;
+            showPage("page-companion");
+            window.scrollTo(0, 0);
+            pushVirtualState("companion");
+            await buildCompanionSwatchGrid();
         }
-        // v382: sibling picker to selectCompanion/toggleCompanionSettings/buildCompanionSwatchGrid
+        // v382: sibling picker to selectCompanion/navigateToCompanionPage/buildCompanionSwatchGrid
         // above, for the independent Monthly Trend Mascot setting — same shape, writing to
         // MONTHLY_TREND_MASCOT_SETTINGS_KEY instead of COMPANION_SETTINGS_KEY, and with a leading
         // "Match Companion" swatch (id "match") that isn't in the COMPANIONS list itself since it
@@ -8423,41 +8384,29 @@
             };
             grid.innerHTML = await buildMascotSwatchGridHTML(selectedId, "selectMonthlyTrendMascot", [matchOption]);
         }
-        async function toggleMonthlyTrendMascotSettings() {
-            ensureOnDataSecurityPage();
-            const panel = document.getElementById("monthlyTrendMascotSettingsPanel");
-            const isHidden = panel.style.display === "none";
-            if (isHidden) {
-                await buildMonthlyTrendMascotSwatchGrid();
-                enterSettingsDetail("monthlyTrendMascotSettingsPanel", "Monthly Trend Mascot");
-                panel.style.display = "flex";
-            } else {
-                panel.style.display = "none";
-                backToSettingsGrid();
-            }
+        // v394: own full page now (page-monthlytrendmascot).
+        function navigateToMonthlyTrendMascotPage() {
+            workspaceScrollY = window.scrollY;
+            showPage("page-monthlytrendmascot");
+            window.scrollTo(0, 0);
+            pushVirtualState("monthlytrendmascot");
+            buildMonthlyTrendMascotSwatchGrid();
         }
         // v382: sibling to toggleCompanionSettingsFromDashboard() above — tapping the mascot next
         // to "Monthly Trend" itself (not the title/chevron around it, which still toggles the
         // table — see the span's own data-click in index.html, which shadows the parent's during
-        // event delegation's closest() walk) jumps to its own settings panel the same way.
-        // Tapping the mascot itself on the dashboard jumps straight to Setting > Companion
-        // (expanded) rather than just being decorative — mirrors how other dashboard chips
-        // (e.g. the header currency pill) already double as shortcuts into Settings.
+        // event delegation's closest() walk) jumps to its own settings page the same way.
+        // Tapping the mascot itself on the dashboard jumps straight to the Companion page rather
+        // than just being decorative — mirrors how other dashboard chips (e.g. the header
+        // currency pill) already double as shortcuts into Settings.
+        // v394: was a two-step "navigate to hub, then setTimeout to open the panel there" dance
+        // back when these were inline panels on page-datasecurity; now they're real pages so this
+        // is just a direct call.
         function toggleCompanionSettingsFromDashboard() {
-            navigateToDataSecurityPage();
-            setTimeout(async () => {
-                const panel = document.getElementById("companionSettingsPanel");
-                if (panel && panel.style.display === "none") await toggleCompanionSettings();
-                panel && panel.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, 50);
+            navigateToCompanionPage();
         }
         function toggleMonthlyTrendMascotSettingsFromDashboard() {
-            navigateToDataSecurityPage();
-            setTimeout(async () => {
-                const panel = document.getElementById("monthlyTrendMascotSettingsPanel");
-                if (panel && panel.style.display === "none") await toggleMonthlyTrendMascotSettings();
-                panel && panel.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, 50);
+            navigateToMonthlyTrendMascotPage();
         }
         // v347: one-time upgrade path for anyone who picked a Companion on v341-v346, back when
         // the pick lived in localStorage — copies it into the new IndexedDB settings-store key
@@ -19310,13 +19259,6 @@
             handleBackupBackClick: () => handleBackupBackClick(),
             navigateToAllLedgerPage: () => navigateToAllLedgerPage(),
             navigateToDataSecurityPage: () => navigateToDataSecurityPage(),
-            // v389: the Setting page's icon-grid detail views (Background Theme, Net Worth Card
-            // Style, Companion, Monthly Trend Mascot, Dashboard Widgets, Default Accounts) each
-            // have their own "‹ Back" next to the item's title, separate from the outer "‹ Back"
-            // next to "Setting" itself (which still exits to the Dashboard via
-            // navigateToDataSecurityPage's own data-click above). This one was missing from the
-            // dispatch table, which is why it silently did nothing — adding it here is the fix.
-            backToSettingsGrid: () => backToSettingsGrid(),
             // v278: page-database's own back button used to only be reachable via sidebarGo's
             // "database" case (see sidebarGo() above) — this is the first place something
             // navigates INTO that page directly via its own data-click (the new "Review
@@ -19337,19 +19279,23 @@
             openAddAccountForMember: () => openAddAccountForMember(),
             toggleMemberNetWorthCollapse: () => toggleMemberNetWorthCollapse(),
             selectMemberColor: (el) => selectMemberColor(el),
-            toggleBgThemeSettings: () => toggleBgThemeSettings(),
-            toggleDashboardWidgetsSettings: () => toggleDashboardWidgetsSettings(),
+            // v394: the 6 Setting items below (Background Theme, Net Worth Card Style, Companion,
+            // Monthly Trend Mascot, Dashboard Widgets, Default Accounts) are now their own full
+            // pages (page-bgtheme etc.) instead of inline panels on page-datasecurity — see the
+            // navigateTo*Page() functions themselves for the v392/v393/v394 history.
+            navigateToBgThemePage: () => navigateToBgThemePage(),
+            navigateToDashboardWidgetsPage: () => navigateToDashboardWidgetsPage(),
             navigateToMonthlyTrendPage: () => navigateToMonthlyTrendPage(),
-            toggleDefaultAccountsSettings: () => toggleDefaultAccountsSettings(),
+            navigateToDefaultAccountsPage: () => navigateToDefaultAccountsPage(),
             selectBgTheme: (el) => selectBgTheme(el),
-            toggleNetWorthCardStyleSettings: () => toggleNetWorthCardStyleSettings(),
+            navigateToNetWorthCardStylePage: () => navigateToNetWorthCardStylePage(),
             selectNetWorthCardStyle: (el) => selectNetWorthCardStyle(el),
-            toggleCompanionSettings: () => toggleCompanionSettings(),
+            navigateToCompanionPage: () => navigateToCompanionPage(),
             toggleCompanionSettingsFromDashboard: () => toggleCompanionSettingsFromDashboard(),
             selectCompanion: (el) => selectCompanion(el),
             triggerCompanionCustomImageUpload: () => triggerCompanionCustomImageUpload(),
             removeCompanionCustomPhoto: (el) => removeCompanionCustomPhoto(el),
-            toggleMonthlyTrendMascotSettings: () => toggleMonthlyTrendMascotSettings(),
+            navigateToMonthlyTrendMascotPage: () => navigateToMonthlyTrendMascotPage(),
             toggleMonthlyTrendMascotSettingsFromDashboard: (el, e) => { e.stopPropagation(); toggleMonthlyTrendMascotSettingsFromDashboard(); },
             selectMonthlyTrendMascot: (el) => selectMonthlyTrendMascot(el),
             triggerAccLogoUpload: () => triggerAccLogoUpload(),

@@ -2150,12 +2150,16 @@
         }
         /* v389: Setting page icon grid — replaces the old single flat list of labeled rows.
            Tapping "Setting" now lands on a grid of icon-only tiles (this class); tapping a tile
-           opens that item's own full-screen detail view (#settingsDetailView below) instead of
-           expanding a panel in place. Same card visual language as .config-item (bg/border/
-           shadow) so it still reads as part of this app, just laid out as a grid instead of a
-           list. */
-        /* v392: icon column + detail pane side by side, both always visible — clicking a
-           different icon swaps the pane's content directly instead of hiding the column. */
+           navigates to that item's own full page. Same card visual language as .config-item
+           (bg/border/shadow) so it still reads as part of this app, just laid out as a grid
+           instead of a list. */
+        /* v394: every Settings sub-page (both the original 7 — Members/Categories/Templates/
+           Tags/Backup/Auto-Lock/Database — and the 6 that used to be inline panels on
+           page-datasecurity — Background Theme/Net Worth Card Style/Companion/Monthly Trend
+           Mascot/Dashboard Widgets/Default Accounts) is a full page with the icon rail
+           (#settingsIconGrid, cloned via cloneSettingsIconRails() into each page's own
+           .settings-icon-rail-slot) sitting beside its content in this same .settings-split
+           flex row, so the rail stays visible no matter which Settings page you're on. */
         .settings-split {
             display: flex;
             gap: 16px;
@@ -2183,11 +2187,9 @@
             cursor: pointer;
             transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
         }
-        #settingsDetailView { flex: 1; min-width: 0; }
-        /* v393: the same icon rail, cloned (via cloneSettingsIconRails() in ledger.js) onto every
-           other Settings sub-page (Members/Categories/Templates/Tags/Backup/Auto-Lock/Database)
-           so it's always visible while inside Settings, not just on page-datasecurity itself —
-           these slots start empty and get the rail's innerHTML injected once at app init. */
+        /* v393/v394: .settings-icon-rail-slot placeholders start empty and get the rail's
+           innerHTML injected once at bootstrap (cloneSettingsIconRails() in ledger.js), then
+           carry this same class themselves. */
         .settings-page-content { flex: 1; min-width: 0; }
         .settings-icon-btn:hover {
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
@@ -2197,8 +2199,6 @@
         .settings-icon-emoji { font-size: 1.7rem; line-height: 1; }
         /* Reset App Data — kept visually distinct (red icon) same as it was in the old list. */
         .settings-icon-btn-danger .settings-icon-emoji { filter: none; }
-        #settingsDetailView.hidden { display: none; }
-        #settingsDetailView .nav-header { padding-top: 0; margin-bottom: 10px; }
         /* Fund holding listed under its Unit Trust account row on the Accounts page — indented,
            lighter background/border so it reads as a child of the account above it. Deliberately
            flatter than .config-item above (no shadow/hover-lift) — it's already visually nested
@@ -3423,7 +3423,7 @@
     <!-- ================= PAGE 5: ALL CATEGORIES ================= -->
     <div id="page-categories" class="page hidden">
         <div class="nav-header">
-            <button class="back-btn" data-click="navigateToDataSecurityPage">&larr; Back</button>
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
             <div>
                 <h3 style="font-weight:800; font-size:1.2rem;">Categories</h3>
                 <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">All income &amp; spending categories</p>
@@ -3471,7 +3471,7 @@
     <!-- ================= PAGE: TRANSACTION TEMPLATES (v227) ================= -->
     <div id="page-templates" class="page hidden">
         <div class="nav-header">
-            <button class="back-btn" data-click="navigateToDataSecurityPage">&larr; Back</button>
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
             <div>
                 <h3 style="font-weight:800; font-size:1.2rem;">Transaction Templates</h3>
                 <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Reusable presets for the ⭐ picker on Add Income/Expense</p>
@@ -3499,7 +3499,7 @@
     <!-- ================= PAGE: MANAGE TAGS (v257) ================= -->
     <div id="page-tags" class="page hidden">
         <div class="nav-header">
-            <button class="back-btn" data-click="navigateToDataSecurityPage">&larr; Back</button>
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
             <div>
                 <h3 style="font-weight:800; font-size:1.2rem;">Manage Tags</h3>
                 <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Trip/claim labels for the Add Income/Expense form's Tags field</p>
@@ -3741,7 +3741,7 @@
     <!-- ================= PAGE: AUTO-LOCK (split out of Backup & Restore, v32) ================= -->
     <div id="page-autolock" class="page hidden">
         <div class="nav-header">
-            <button class="back-btn" data-click="navigateToDataSecurityPage">&larr; Back</button>
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
             <div>
                 <h3 style="font-weight:800; font-size:1.2rem;">Auto-Lock</h3>
                 <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Lock the app automatically after inactivity</p>
@@ -3772,7 +3772,7 @@
     <!-- ================= PAGE: APP LOCAL DATABASE (split out of Backup & Restore, v32) ================= -->
     <div id="page-database" class="page hidden">
         <div class="nav-header">
-            <button class="back-btn" data-click="navigateToDataSecurityPage">&larr; Back</button>
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
             <div>
                 <h3 style="font-weight:800; font-size:1.2rem;">App Local Database</h3>
                 <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">On-device storage footprint</p>
@@ -4340,21 +4340,15 @@
                 <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Members, backups, auto-lock &amp; storage</p>
             </div>
         </div>
-        <!-- v392: icon column + detail pane sit side by side and both stay visible — clicking a
-             different icon just swaps the detail pane's content, no need to go back first.
-             (Manage Members/Categories/Templates/Tags/Backup/Auto-Lock/Database, Currency
-             Setting, Lock App Now, Reset App Data still navigate to their own existing full
-             page, same as before — this split view only applies to the six items that used to
-             expand an inline panel.) -->
         <div class="settings-split">
         <div id="settingsIconGrid" class="settings-icon-grid">
-            <button class="settings-icon-btn" title="Background Theme" aria-label="Background Theme" data-click="toggleBgThemeSettings"><span class="settings-icon-emoji">🎨</span></button>
-            <button class="settings-icon-btn" title="Net Worth Card Style" aria-label="Net Worth Card Style" data-click="toggleNetWorthCardStyleSettings"><span class="settings-icon-emoji">🎴</span></button>
-            <button class="settings-icon-btn" title="Companion" aria-label="Companion" data-click="toggleCompanionSettings"><span class="settings-icon-emoji">🐾</span></button>
-            <button class="settings-icon-btn" title="Monthly Trend Mascot" aria-label="Monthly Trend Mascot" data-click="toggleMonthlyTrendMascotSettings"><span class="settings-icon-emoji">📈</span></button>
-            <button class="settings-icon-btn" title="Dashboard Widgets" aria-label="Dashboard Widgets" data-click="toggleDashboardWidgetsSettings"><span class="settings-icon-emoji">📊</span></button>
+            <button class="settings-icon-btn" title="Background Theme" aria-label="Background Theme" data-click="navigateToBgThemePage"><span class="settings-icon-emoji">🎨</span></button>
+            <button class="settings-icon-btn" title="Net Worth Card Style" aria-label="Net Worth Card Style" data-click="navigateToNetWorthCardStylePage"><span class="settings-icon-emoji">🎴</span></button>
+            <button class="settings-icon-btn" title="Companion" aria-label="Companion" data-click="navigateToCompanionPage"><span class="settings-icon-emoji">🐾</span></button>
+            <button class="settings-icon-btn" title="Monthly Trend Mascot" aria-label="Monthly Trend Mascot" data-click="navigateToMonthlyTrendMascotPage"><span class="settings-icon-emoji">📈</span></button>
+            <button class="settings-icon-btn" title="Dashboard Widgets" aria-label="Dashboard Widgets" data-click="navigateToDashboardWidgetsPage"><span class="settings-icon-emoji">📊</span></button>
             <button class="settings-icon-btn" title="Currency Setting" aria-label="Currency Setting" data-click="openCurrencyConfig"><span class="settings-icon-emoji">💱</span></button>
-            <button class="settings-icon-btn" title="Default Accounts" aria-label="Default Accounts" data-click="toggleDefaultAccountsSettings"><span class="settings-icon-emoji">💰</span></button>
+            <button class="settings-icon-btn" title="Default Accounts" aria-label="Default Accounts" data-click="navigateToDefaultAccountsPage"><span class="settings-icon-emoji">💰</span></button>
             <button class="settings-icon-btn" title="Manage Members" aria-label="Manage Members" data-click="sidebarGo" data-target="members"><span class="settings-icon-emoji">👪</span></button>
             <button class="settings-icon-btn" title="Manage Categories" aria-label="Manage Categories" data-click="navigateToCategoriesPage"><span class="settings-icon-emoji">🏷️</span></button>
             <button class="settings-icon-btn" title="Transaction Templates" aria-label="Transaction Templates" data-click="navigateToTemplatesPage"><span class="settings-icon-emoji">🧾</span></button>
@@ -4365,180 +4359,257 @@
             <button class="settings-icon-btn" title="Lock App Now" aria-label="Lock App Now" data-click="lockAppNow"><span class="settings-icon-emoji">🔒</span></button>
             <button class="settings-icon-btn settings-icon-btn-danger" title="Reset App Data" aria-label="Reset App Data" data-click="openResetAppDataModal"><span class="settings-icon-emoji" style="color:var(--expense-color);">🗑️</span></button>
         </div>
+        </div>
+    </div>
 
-        <!-- v392: detail pane — empty/hidden until an icon on the left opens one of the six
-             panels below; clicking another icon over there swaps which panel shows here
-             directly. "‹ Back" clears the pane back to empty (same effect as clicking the same
-             icon again). -->
-        <div id="settingsDetailView" class="hidden">
-            <div class="nav-header">
-                <button class="back-btn" data-click="backToSettingsGrid">&larr; Back</button>
-                <div><h3 id="settingsDetailTitle" style="font-weight:800; font-size:1.1rem;"></h3></div>
+    <!-- ================= PAGE: BACKGROUND THEME (v394: split off page-datasecurity's old inline
+         panel into its own full page, matching Members/Categories/etc. — single "← Back" row,
+         rail cloned in via cloneSettingsIconRails()) ================= -->
+    <div id="page-bgtheme" class="page hidden">
+        <div class="nav-header">
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
+            <div>
+                <h3 style="font-weight:800; font-size:1.2rem;">Background Theme</h3>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Page background &amp; chrome tint</p>
             </div>
-            <div id="bgThemeSettingsPanel" class="settings-detail-panel" style="display:none; flex-direction:column; gap:10px; background:var(--card-bg); border:1.5px solid var(--border-color); border-radius:12px; padding:12px; margin-bottom:10px;">
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Changes the page background and the tint of the chrome shadows (FAB, calculator, nav bar) to match. Cards, glass panels and data colors stay the same.</p>
-                <!-- v206: mirrors the OS's own day/night auto-switch — toggling this on tracks
-                     prefers-color-scheme live, flipping between whichever dark preset (暗夜描边,
-                     Slate, or 尊爵黑金) you last tapped and whichever light preset was active
-                     beforehand. Tapping any swatch below turns Auto back off but still remembers
-                     that swatch for its side (light or dark) — so you can change which dark
-                     preset Auto uses any time, not just while turning Auto on. -->
-                <div class="toggle-switch-row" style="margin-top:0;">
-                    <span class="toggle-switch-label">🌗 Auto (follow system day/night)</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="bgThemeAutoToggle" data-change="handleBgThemeAutoToggleChange">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <p style="font-size:0.7rem; color:var(--text-muted);">Tapping 暗夜描边, Slate, or 尊爵黑金 — anytime, even while Auto is off — sets which one Auto switches to at night. The others stay remembered for daytime.</p>
-                <div class="color-swatch-grid" id="bgThemeSwatchGrid"></div>
-                <!-- v247: only relevant to the 蠟筆小新 preset (its scoped CSS is the only place
-                     data-crayon-font is read), so this row stays hidden via CSS below for every
-                     other preset instead of cluttering Settings when it wouldn't do anything. -->
-                <div class="toggle-switch-row" id="crayonFontToggleRow" style="margin-top:0;">
-                    <span class="toggle-switch-label">✏️ 蠟筆小新: Handwritten font (Kalam)</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="crayonFontToggle" data-change="handleCrayonFontToggleChange">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
+        </div>
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:10px;">
+            <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Changes the page background and the tint of the chrome shadows (FAB, calculator, nav bar) to match. Cards, glass panels and data colors stay the same.</p>
+            <!-- v206: mirrors the OS's own day/night auto-switch — toggling this on tracks
+                 prefers-color-scheme live, flipping between whichever dark preset (暗夜描边,
+                 Slate, or 尊爵黑金) you last tapped and whichever light preset was active
+                 beforehand. Tapping any swatch below turns Auto back off but still remembers
+                 that swatch for its side (light or dark) — so you can change which dark
+                 preset Auto uses any time, not just while turning Auto on. -->
+            <div class="toggle-switch-row" style="margin-top:0;">
+                <span class="toggle-switch-label">🌗 Auto (follow system day/night)</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="bgThemeAutoToggle" data-change="handleBgThemeAutoToggleChange">
+                    <span class="toggle-slider"></span>
+                </label>
             </div>
-            <!-- v326: Net Worth Card Style — separate from Background Theme above (that one
-                 recolors the page/chrome; this only recolors the Dashboard's Portfolio Net Worth
-                 hero card, see .net-worth-hero-card / --net-worth-card-bg). -->
-            <div id="netWorthCardStyleSettingsPanel" class="settings-detail-panel" style="display:none; flex-direction:column; gap:10px; background:var(--card-bg); border:1.5px solid var(--border-color); border-radius:12px; padding:12px; margin-bottom:10px;">
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Changes only the background of the Dashboard's Portfolio Net Worth card. "Classic" adapts to whichever Background Theme is active; the others are fixed gradients.</p>
-                <div class="color-swatch-grid" id="netWorthCardStyleSwatchGrid"></div>
+            <p style="font-size:0.7rem; color:var(--text-muted);">Tapping 暗夜描边, Slate, or 尊爵黑金 — anytime, even while Auto is off — sets which one Auto switches to at night. The others stay remembered for daytime.</p>
+            <div class="color-swatch-grid" id="bgThemeSwatchGrid"></div>
+            <!-- v247: only relevant to the 蠟筆小新 preset (its scoped CSS is the only place
+                 data-crayon-font is read), so this row stays hidden via CSS below for every
+                 other preset instead of cluttering Settings when it wouldn't do anything. -->
+            <div class="toggle-switch-row" id="crayonFontToggleRow" style="margin-top:0;">
+                <span class="toggle-switch-label">✏️ 蠟筆小新: Handwritten font (Kalam)</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="crayonFontToggle" data-change="handleCrayonFontToggleChange">
+                    <span class="toggle-slider"></span>
+                </label>
             </div>
-            <!-- v341: Companion — a small optional mascot shown in the Portfolio Net Worth card's
-                 right-hand gutter (see .net-worth-companion / COMPANIONS in ledger.js). Original
-                 line-art, not tied to any Background Theme — same translucent-white treatment as
-                 the card's Financial Assets/Real Estate chips, so it reads correctly against every
-                 Net Worth Card Style gradient without needing separate light/dark artwork. -->
-            <div id="companionSettingsPanel" class="settings-detail-panel" style="display:none; flex-direction:column; gap:10px; background:var(--card-bg); border:1.5px solid var(--border-color); border-radius:12px; padding:12px; margin-bottom:10px;">
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">A small mascot next to your Portfolio Net Worth figure. Save up to 20 of your own photos below and switch between them any time — each preview shows how it actually looks on the card. Tap the "×" on a photo to remove it.</p>
-                <div id="companionSwatchGrid"></div>
-                <!-- v343: hidden file input behind the "My Photos" group's "＋ Add" tile — same
-                     accept="image/*" pattern the transaction-attachment inputs use. No `capture`
-                     attribute (unlike the receipt camera input) since a companion photo is just
-                     as likely to come from the gallery as the camera. -->
-                <input type="file" id="companionCustomImageInput" accept="image/*" style="display:none;" data-change="handleCompanionCustomImageSelected">
+        </div>
+        </div>
+    </div>
+
+    <!-- ================= PAGE: NET WORTH CARD STYLE (v326; split into own page v394) ================= -->
+    <div id="page-networthcardstyle" class="page hidden">
+        <div class="nav-header">
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
+            <div>
+                <h3 style="font-weight:800; font-size:1.2rem;">Net Worth Card Style</h3>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Portfolio Net Worth card background</p>
             </div>
+        </div>
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:10px;">
+            <!-- v326: separate from Background Theme above (that one recolors the page/chrome;
+                 this only recolors the Dashboard's Portfolio Net Worth hero card, see
+                 .net-worth-hero-card / --net-worth-card-bg). -->
+            <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Changes only the background of the Dashboard's Portfolio Net Worth card. "Classic" adapts to whichever Background Theme is active; the others are fixed gradients.</p>
+            <div class="color-swatch-grid" id="netWorthCardStyleSwatchGrid"></div>
+        </div>
+        </div>
+    </div>
+
+    <!-- ================= PAGE: COMPANION (v341; split into own page v394) ================= -->
+    <div id="page-companion" class="page hidden">
+        <div class="nav-header">
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
+            <div>
+                <h3 style="font-weight:800; font-size:1.2rem;">Companion</h3>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Optional mascot for the Net Worth card</p>
+            </div>
+        </div>
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:10px;">
+            <!-- v341: a small optional mascot shown in the Portfolio Net Worth card's right-hand
+                 gutter (see .net-worth-companion / COMPANIONS in ledger.js). Original line-art,
+                 not tied to any Background Theme — same translucent-white treatment as the card's
+                 Financial Assets/Real Estate chips, so it reads correctly against every Net Worth
+                 Card Style gradient without needing separate light/dark artwork. -->
+            <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">A small mascot next to your Portfolio Net Worth figure. Save up to 20 of your own photos below and switch between them any time — each preview shows how it actually looks on the card. Tap the "×" on a photo to remove it.</p>
+            <div id="companionSwatchGrid"></div>
+            <!-- v343: hidden file input behind the "My Photos" group's "＋ Add" tile — same
+                 accept="image/*" pattern the transaction-attachment inputs use. No `capture`
+                 attribute (unlike the receipt camera input) since a companion photo is just
+                 as likely to come from the gallery as the camera. -->
+            <input type="file" id="companionCustomImageInput" accept="image/*" style="display:none;" data-change="handleCompanionCustomImageSelected">
+        </div>
+        </div>
+    </div>
+
+    <!-- ================= PAGE: MONTHLY TREND MASCOT (v382; split into own page v394) ================= -->
+    <div id="page-monthlytrendmascot" class="page hidden">
+        <div class="nav-header">
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
+            <div>
+                <h3 style="font-weight:800; font-size:1.2rem;">Monthly Trend Mascot</h3>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Mascot for the Monthly Trend title</p>
+            </div>
+        </div>
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:10px;">
             <!-- v382: independent mascot pick for the Monthly Trend title, decoupled from the
                  Companion above on request — previously this was a read-only mirror of whatever
-                 Companion had picked (see the old v372 comment on renderMonthlyTrendMascotIcon in
-                 ledger.js), with no way to show something different in the two spots. Defaults to
-                 "Match Companion" (mirrors the setting above, same as before) unless changed here. -->
-            <div id="monthlyTrendMascotSettingsPanel" class="settings-detail-panel" style="display:none; flex-direction:column; gap:10px; background:var(--card-bg); border:1.5px solid var(--border-color); border-radius:12px; padding:12px; margin-bottom:10px;">
-                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">The small mascot next to the "Monthly Trend" title on your Dashboard. Leave this on "Match Companion" to always mirror the pick above, or choose something different just for this spot.</p>
-                <div id="monthlyTrendMascotSwatchGrid"></div>
+                 Companion had picked, with no way to show something different in the two spots.
+                 Defaults to "Match Companion" (mirrors the setting above, same as before) unless
+                 changed here. -->
+            <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">The small mascot next to the "Monthly Trend" title on your Dashboard. Leave this on "Match Companion" to always mirror the pick above, or choose something different just for this spot.</p>
+            <div id="monthlyTrendMascotSwatchGrid"></div>
+        </div>
+        </div>
+    </div>
+
+    <!-- ================= PAGE: DASHBOARD WIDGETS (v224; split into own page v394) ================= -->
+    <div id="page-dashboardwidgets" class="page hidden">
+        <div class="nav-header">
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
+            <div>
+                <h3 style="font-weight:800; font-size:1.2rem;">Dashboard Widgets</h3>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Choose what shows on your Dashboard</p>
             </div>
-            <div id="dashboardWidgetsSettingsPanel" class="settings-detail-panel" style="display:none; flex-direction:column; gap:14px; background:var(--card-bg); border:1.5px solid var(--border-color); border-radius:12px; padding:12px; margin-bottom:10px;">
-                <!-- v387: section order in this panel, per request — the two simple on/off
-                     widget switches (Monthly Trend, Budget) sit at the top where they're reachable
-                     without scrolling, then the dashboard ordering control, then the two
-                     multi-setting widget blocks (Recent Transactions before Accounts, matching the
-                     order this user actually has them in on the Dashboard). Purely presentational:
-                     no ids, handlers or defaults changed. -->
-                <!-- v386: Monthly Trend is now also its own Reports page, so it no longer has to
-                     be on the Dashboard — off here just hides #monthlyTrendDashboardSlot; the block
-                     itself (and all its state) stays live and fully usable at Reports > Monthly Trend. -->
-                <div>
-                    <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">MONTHLY TREND</p>
-                    <div class="toggle-switch-row" style="margin-top:0;">
-                        <span class="toggle-switch-label">Show on Dashboard</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="dashboardMonthlyTrendToggle" data-change="handleDashboardMonthlyTrendToggleChange">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <p style="font-size:0.75rem; color:var(--text-muted); margin:8px 0 0;">When off, it stays available under Reports &gt; Monthly Trend in the sidebar.</p>
+        </div>
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:14px; padding-bottom:24px;">
+            <!-- v387: section order in this page, per request — the two simple on/off widget
+                 switches (Monthly Trend, Budget) sit at the top where they're reachable without
+                 scrolling, then the dashboard ordering control, then the two multi-setting widget
+                 blocks (Recent Transactions before Accounts, matching the order this user
+                 actually has them in on the Dashboard). Purely presentational: no ids, handlers
+                 or defaults changed. -->
+            <!-- v386: Monthly Trend is now also its own Reports page, so it no longer has to be
+                 on the Dashboard — off here just hides #monthlyTrendDashboardSlot; the block
+                 itself (and all its state) stays live and fully usable at Reports > Monthly Trend. -->
+            <div>
+                <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">MONTHLY TREND</p>
+                <div class="toggle-switch-row" style="margin-top:0;">
+                    <span class="toggle-switch-label">Show on Dashboard</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="dashboardMonthlyTrendToggle" data-change="handleDashboardMonthlyTrendToggleChange">
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
-                <!-- v334: lets the user pick which of THIS MONTH's Category Budgets also get
-                     their own mini progress row on the Dashboard's Remaining Budget widget, which
-                     otherwise only ever shows the overall Monthly/Yearly total. Pool is built live
-                     from the current month's budget record — see renderDashboardBudgetCategoryToggles(). -->
-                <div>
-                    <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">BUDGET WIDGET</p>
-                    <div class="toggle-switch-row" style="margin-top:0;">
-                        <span class="toggle-switch-label">Show on Dashboard</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="dashboardBudgetWidgetToggle" data-change="handleDashboardBudgetWidgetToggleChange">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <p style="font-size:0.75rem; color:var(--text-muted); margin:10px 0 8px;">Choose which category budgets also show on the Dashboard.</p>
-                    <div id="dashboardBudgetCategoryToggles" style="display:flex; flex-direction:column; gap:2px;"></div>
-                    <p id="dashboardBudgetCategoryTogglesEmpty" style="font-size:0.8rem; color:var(--text-muted); display:none;">No category budgets set for this month yet — add some on the Budget page first.</p>
+                <p style="font-size:0.75rem; color:var(--text-muted); margin:8px 0 0;">When off, it stays available under Reports &gt; Monthly Trend in the sidebar.</p>
+            </div>
+            <!-- v334: lets the user pick which of THIS MONTH's Category Budgets also get their
+                 own mini progress row on the Dashboard's Remaining Budget widget, which otherwise
+                 only ever shows the overall Monthly/Yearly total. Pool is built live from the
+                 current month's budget record — see renderDashboardBudgetCategoryToggles(). -->
+            <div>
+                <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">BUDGET WIDGET</p>
+                <div class="toggle-switch-row" style="margin-top:0;">
+                    <span class="toggle-switch-label">Show on Dashboard</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="dashboardBudgetWidgetToggle" data-change="handleDashboardBudgetWidgetToggleChange">
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
+                <p style="font-size:0.75rem; color:var(--text-muted); margin:10px 0 8px;">Choose which category budgets also show on the Dashboard.</p>
+                <div id="dashboardBudgetCategoryToggles" style="display:flex; flex-direction:column; gap:2px;"></div>
+                <p id="dashboardBudgetCategoryTogglesEmpty" style="font-size:0.8rem; color:var(--text-muted); display:none;">No category budgets set for this month yet — add some on the Budget page first.</p>
+            </div>
+            <div class="form-row" style="margin-bottom:0;">
+                <label>Order on Dashboard</label>
+                <button type="button" id="dashboardWidgetOrderSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="dashboardWidgetOrderSelect" data-title="Order on Dashboard">
+                    <span id="dashboardWidgetOrderSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                </button>
+                <select id="dashboardWidgetOrderSelect" style="display:none;" data-change="handleDashboardWidgetOrderChange">
+                    <option value="accounts-first">Accounts, then Recent Transactions</option>
+                    <option value="recenttx-first">Recent Transactions, then Accounts</option>
+                </select>
+            </div>
+            <div>
+                <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">RECENT TRANSACTIONS WIDGET</p>
                 <div class="form-row" style="margin-bottom:0;">
-                    <label>Order on Dashboard</label>
-                    <button type="button" id="dashboardWidgetOrderSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="dashboardWidgetOrderSelect" data-title="Order on Dashboard">
-                        <span id="dashboardWidgetOrderSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                    <label>Show</label>
+                    <button type="button" id="recentTxTypeSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="recentTxTypeSelect" data-title="Show">
+                        <span id="recentTxTypeSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
                     </button>
-                    <select id="dashboardWidgetOrderSelect" style="display:none;" data-change="handleDashboardWidgetOrderChange">
-                        <option value="accounts-first">Accounts, then Recent Transactions</option>
-                        <option value="recenttx-first">Recent Transactions, then Accounts</option>
+                    <select id="recentTxTypeSelect" style="display:none;" data-change="handleRecentTxSettingChange">
+                        <option value="both">Income + Expense</option>
+                        <option value="income">Income Only</option>
+                        <option value="expense">Expense Only</option>
+                        <option value="none">None (Hide Widget)</option>
                     </select>
                 </div>
-                <div>
-                    <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">RECENT TRANSACTIONS WIDGET</p>
-                    <div class="form-row" style="margin-bottom:0;">
-                        <label>Show</label>
-                        <button type="button" id="recentTxTypeSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="recentTxTypeSelect" data-title="Show">
-                            <span id="recentTxTypeSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                        </button>
-                        <select id="recentTxTypeSelect" style="display:none;" data-change="handleRecentTxSettingChange">
-                            <option value="both">Income + Expense</option>
-                            <option value="income">Income Only</option>
-                            <option value="expense">Expense Only</option>
-                            <option value="none">None (Hide Widget)</option>
-                        </select>
-                    </div>
-                    <div class="form-row" style="margin-bottom:0; margin-top:8px;">
-                        <label>Account</label>
-                        <button type="button" id="recentTxAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="recentTxAccountSelect" data-title="Select Account">
-                            <span id="recentTxAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                        </button>
-                        <select id="recentTxAccountSelect" style="display:none;" data-change="handleRecentTxSettingChange">
-                            <option value="all">All Accounts</option>
-                        </select>
-                    </div>
-                    <div class="form-row" style="margin-bottom:0; margin-top:8px;">
-                        <label>Number of items</label>
-                        <button type="button" id="recentTxCountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="recentTxCountSelect" data-title="Number of Items">
-                            <span id="recentTxCountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                        </button>
-                        <select id="recentTxCountSelect" style="display:none;" data-change="handleRecentTxSettingChange"></select>
-                    </div>
+                <div class="form-row" style="margin-bottom:0; margin-top:8px;">
+                    <label>Account</label>
+                    <button type="button" id="recentTxAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="recentTxAccountSelect" data-title="Select Account">
+                        <span id="recentTxAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                    </button>
+                    <select id="recentTxAccountSelect" style="display:none;" data-change="handleRecentTxSettingChange">
+                        <option value="all">All Accounts</option>
+                    </select>
                 </div>
-                <div>
-                    <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">ACCOUNTS WIDGET</p>
-                    <div class="form-row" style="margin-bottom:0;">
-                        <label>Number of items shown</label>
-                        <button type="button" id="pinnedAccountCountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="pinnedAccountCountSelect" data-title="Number of Items Shown">
-                            <span id="pinnedAccountCountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                        </button>
-                        <select id="pinnedAccountCountSelect" style="display:none;" data-change="handlePinnedAccountCountChange"></select>
-                    </div>
-                    <div id="pinnedAccountSlotSelects" style="display:flex; flex-direction:column; gap:8px; margin-top:8px;"></div>
+                <div class="form-row" style="margin-bottom:0; margin-top:8px;">
+                    <label>Number of items</label>
+                    <button type="button" id="recentTxCountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="recentTxCountSelect" data-title="Number of Items">
+                        <span id="recentTxCountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                    </button>
+                    <select id="recentTxCountSelect" style="display:none;" data-change="handleRecentTxSettingChange"></select>
                 </div>
             </div>
-            <div id="defaultAccountsSettingsPanel" class="settings-detail-panel" style="display:none; flex-direction:column; gap:14px; background:var(--card-bg); border:1.5px solid var(--border-color); border-radius:12px; padding:12px; margin-bottom:10px;">
+            <div>
+                <p style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin:0 0 8px;">ACCOUNTS WIDGET</p>
                 <div class="form-row" style="margin-bottom:0;">
-                    <label>Default Payment Account</label>
-                    <button type="button" id="defaultPaymentAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultPaymentAccountSelect" data-title="Default Payment Account">
-                        <span id="defaultPaymentAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                    <label>Number of items shown</label>
+                    <button type="button" id="pinnedAccountCountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="pinnedAccountCountSelect" data-title="Number of Items Shown">
+                        <span id="pinnedAccountCountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
                     </button>
-                    <select id="defaultPaymentAccountSelect" style="display:none;" data-change="saveDefaultPaymentAccount"></select>
+                    <select id="pinnedAccountCountSelect" style="display:none;" data-change="handlePinnedAccountCountChange"></select>
                 </div>
-                <div class="form-row" style="margin-bottom:0;">
-                    <label>Default Receive Account</label>
-                    <button type="button" id="defaultReceiveAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultReceiveAccountSelect" data-title="Default Receive Account">
-                        <span id="defaultReceiveAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
-                    </button>
-                    <select id="defaultReceiveAccountSelect" style="display:none;" data-change="saveDefaultReceiveAccount"></select>
-                </div>
+                <div id="pinnedAccountSlotSelects" style="display:flex; flex-direction:column; gap:8px; margin-top:8px;"></div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- ================= PAGE: DEFAULT ACCOUNTS (v227; split into own page v394) ================= -->
+    <div id="page-defaultaccounts" class="page hidden">
+        <div class="nav-header">
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
+            <div>
+                <h3 style="font-weight:800; font-size:1.2rem;">Default Accounts</h3>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Default payment &amp; receive accounts</p>
+            </div>
+        </div>
+        <div class="settings-split">
+        <div class="settings-icon-rail-slot"></div>
+        <div class="settings-page-content" style="display:flex; flex-direction:column; gap:14px;">
+            <!-- v227: these used to live in a card at the top of the Accounts page; moved here
+                 since they're app-wide preferences, not something specific to browsing accounts. -->
+            <div class="form-row" style="margin-bottom:0;">
+                <label>Default Payment Account</label>
+                <button type="button" id="defaultPaymentAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultPaymentAccountSelect" data-title="Default Payment Account">
+                    <span id="defaultPaymentAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                </button>
+                <select id="defaultPaymentAccountSelect" style="display:none;" data-change="saveDefaultPaymentAccount"></select>
+            </div>
+            <div class="form-row" style="margin-bottom:0;">
+                <label>Default Receive Account</label>
+                <button type="button" id="defaultReceiveAccountSelectBtn" class="form-input account-picker-btn" data-click="openAccountPicker" data-select="defaultReceiveAccountSelect" data-title="Default Receive Account">
+                    <span id="defaultReceiveAccountSelectBtnText">Select...</span><span class="account-picker-chevron">▾</span>
+                </button>
+                <select id="defaultReceiveAccountSelect" style="display:none;" data-change="saveDefaultReceiveAccount"></select>
             </div>
         </div>
         </div>
@@ -4576,7 +4647,7 @@
     <!-- ================= PAGE: MANAGE MEMBERS (add/edit/remove household members) ================= -->
     <div id="page-members" class="page hidden">
         <div class="nav-header">
-            <button class="back-btn" data-click="navigateToDataSecurityPage">&larr; Back</button>
+            <button class="back-btn" data-click="navigateToWorkspace">&larr; Back</button>
             <div>
                 <h3 style="font-weight:800; font-size:1.2rem;">Manage Members</h3>
                 <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Tag accounts to a member — husband, wife, kids, etc.</p>
