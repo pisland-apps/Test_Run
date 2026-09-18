@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v414";
+        const APP_VERSION = "v415";
         const APP_VERSION_DATE = "2026-09-18";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -361,7 +361,7 @@
         // Deposit/Unit Trust), just where it's filed on the Accounts page.
         const ACCOUNT_SUBGROUPS = {
             "Bank/Cash": ["Current Account", "Savings Account", "Cash Account"],
-            "Investment": ["Fixed Deposit", "KWSP", "CPF", "ASNB", "PTPTN", "Unit Trust"],
+            "Investment": ["Fixed Deposit", "KWSP", "CPF", "ASNB", "PTPTN", "Unit Trust", "Gold"],
         };
         function subgroupsForGroup(group) {
             return ACCOUNT_SUBGROUPS[group] || [];
@@ -6274,15 +6274,7 @@
                     lastSubgroup = subgroup;
                 }
 
-                const typeBadge = a.type === "fd"
-                    ? `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#ede9fe; color:#6d28d9; font-weight:bold;">Fixed Deposit</span>`
-                    : a.type === "multi"
-                        ? `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#e0f2fe; color:#0369a1; font-weight:bold;">Multi-Currency</span>`
-                        : a.type === "unittrust"
-                            ? `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#fef3c7; color:#92400e; font-weight:bold;">Unit Trust</span>`
-                            : a.type === "creditcard"
-                                ? `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#fce7f3; color:#9d174d; font-weight:bold;">Credit Card</span>`
-                                : currencyBadgeHTML(a.currency);
+                const typeBadge = accountTypeBadgeHTML(a);
 
                 const baseVal = accountBaseValue(a, nativeBalances);
 
@@ -6662,6 +6654,24 @@
             return !!fund && fund.category === "Gold";
         }
 
+        // v414 fix: the Accounts list badge previously always said "Unit Trust" for a
+        // type==="unittrust" account, even one filed under the new "Gold" sub-group — which read
+        // as if the gold holding wasn't recognized as gold at all. Centralizes the badge so both
+        // render sites (main Accounts page + a member's Accounts page) show "🪙 Gold" instead
+        // whenever that account's Sub-Group is "Gold", without changing account.type itself (still
+        // "unittrust" under the hood — see the GOLD holdings comment above getFundsForAccount()).
+        function accountTypeBadgeHTML(a) {
+            if (a.type === "fd") return `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#ede9fe; color:#6d28d9; font-weight:bold;">Fixed Deposit</span>`;
+            if (a.type === "multi") return `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#e0f2fe; color:#0369a1; font-weight:bold;">Multi-Currency</span>`;
+            if (a.type === "unittrust") {
+                return (a.subgroup === "Gold")
+                    ? `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#fde68a; color:#78350f; font-weight:bold;">🪙 Gold</span>`
+                    : `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#fef3c7; color:#92400e; font-weight:bold;">Unit Trust</span>`;
+            }
+            if (a.type === "creditcard") return `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#fce7f3; color:#9d174d; font-weight:bold;">Credit Card</span>`;
+            return currencyBadgeHTML(a.currency);
+        }
+
         // Small "priced X days ago" badge — the core defence against acting on a stale manually-
         // entered gold price (a live FX-style auto-fetch isn't in scope for v414; see chat). Blank
         // when there's no price date yet (freshly created holding) or it was priced today.
@@ -6781,7 +6791,7 @@
             const html = fundTxs.map(t => {
                 const col = (t.fundTxType === "sell" || t.fundTxType === "dividend_payout") ? "expense-color" : "income-color";
                 const sgn = (t.fundTxType === "sell" || t.fundTxType === "dividend_payout") ? "-" : "+";
-                const unitsText = t.units != null ? `${t.units.toFixed(4)} units` : "";
+                const unitsText = t.units != null ? `${t.units.toFixed(4)} ${gold ? "g" : "units"}` : "";
                 return `
                     <div class="ledger-item" data-click="openTransactionForm" data-type="${escapeHtml(t.type)}" data-id="${escapeHtml(t.id)}">
                         <div class="item-left">
@@ -9232,6 +9242,7 @@
             const asnbTotal = sumGroup("Investment", ["ASNB"]);
             const ptptnTotal = sumGroup("Investment", ["PTPTN"]);
             const unitTrustTotal = sumGroup("Investment", ["Unit Trust"]);
+            const goldTotal = sumGroup("Investment", ["Gold"]);
             const otherInvTotal = sumGroup("Investment", [""]); // un-sub-grouped Investment accounts
 
             const otherAssetsTotal = sumGroup("Other Assets");
@@ -9248,10 +9259,11 @@
                 nwsRow("ASNB", asnbTotal, "Investment", "ASNB"),
                 nwsRow("PTPTN", ptptnTotal, "Investment", "PTPTN"),
                 nwsRow("Unit Trust", unitTrustTotal, "Investment", "Unit Trust"),
+                nwsRow("Gold", goldTotal, "Investment", "Gold"),
                 nwsRow("Other Investment", otherInvTotal, "Investment", ""),
                 nwsRow("Other Assets", otherAssetsTotal, "Other Assets"),
             ].join("") || `<p style="font-size:0.75rem; color:var(--text-muted);">No asset accounts yet.</p>`;
-            const totalAssets = currentAcct + savingsAcct + cashAcct + otherBankTotal + foreignMoneyAcct + fdTotal + kwspTotal + cpfTotal + asnbTotal + ptptnTotal + unitTrustTotal + otherInvTotal + otherAssetsTotal;
+            const totalAssets = currentAcct + savingsAcct + cashAcct + otherBankTotal + foreignMoneyAcct + fdTotal + kwspTotal + cpfTotal + asnbTotal + ptptnTotal + unitTrustTotal + goldTotal + otherInvTotal + otherAssetsTotal;
             document.getElementById("nwsAssetsTotal").innerHTML = formatBalanceHTML(totalAssets, baseCurrency);
 
             // --- WHAT I OWE ---
@@ -9471,15 +9483,7 @@
                     lastSubgroup = subgroup;
                 }
 
-                const typeBadge = a.type === "fd"
-                    ? `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#ede9fe; color:#6d28d9; font-weight:bold;">Fixed Deposit</span>`
-                    : a.type === "multi"
-                        ? `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#e0f2fe; color:#0369a1; font-weight:bold;">Multi-Currency</span>`
-                        : a.type === "unittrust"
-                            ? `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#fef3c7; color:#92400e; font-weight:bold;">Unit Trust</span>`
-                            : a.type === "creditcard"
-                                ? `<span style="font-size:0.65rem; padding:1px 4px; border-radius:4px; background:#fce7f3; color:#9d174d; font-weight:bold;">Credit Card</span>`
-                                : currencyBadgeHTML(a.currency);
+                const typeBadge = accountTypeBadgeHTML(a);
 
                 const baseVal = accountBaseValue(a, nativeBalances);
 
