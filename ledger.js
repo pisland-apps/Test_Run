@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v416";
+        const APP_VERSION = "v417";
         const APP_VERSION_DATE = "2026-09-18";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -7805,12 +7805,13 @@
         // narrows what "Update All Prices" iterates over (handleSaveAllNav just walks
         // navUpdateFundsCache), so picking "Gold" and saving genuinely only touches gold funds,
         // not a re-save of every unit trust NAV left untouched on screen.
-        function setNavUpdateCategoryFilter(el) {
+        async function setNavUpdateCategoryFilter(el) {
             navUpdateCategoryFilter = el.dataset.filter;
             document.querySelectorAll("#navUpdateCategoryToggle .nav-view-toggle-btn").forEach(b => b.classList.toggle("active", b.dataset.filter === navUpdateCategoryFilter));
             refreshNavUpdateFilteredCache();
             renderNavUpdateCardView();
             renderNavUpdateTableView();
+            await renderNavUpdateHistoryView();
         }
 
         function navUpdateEmptyStateHtml() {
@@ -7861,6 +7862,16 @@
                 </div>`;
         }
 
+        // v417: turns a fund name into a short header initialism for the History table — e.g.
+        // "Asia Pacific Equity Income" -> "APEI". Only ever called for non-Gold funds (see
+        // renderNavUpdateHistoryView) since Gold holdings are already named short (bank/purity
+        // labels like "PBB Gold"); the full name is still kept in the header's title tooltip.
+        function fundHistoryAcronym(name) {
+            const words = (name || "").trim().split(/\s+/).filter(Boolean);
+            if (words.length <= 1) return (name || "").slice(0, 4).toUpperCase();
+            return words.map(w => w[0]).join("").toUpperCase();
+        }
+
         async function renderNavUpdateHistoryView() {
             const wrap = document.getElementById("navUpdateHistoryView");
             const history = (await readAllDB(STORES.NAV_HISTORY)).sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -7884,11 +7895,44 @@
                 });
             });
 
-            const headerCells = fundOrder.map(fid => `<th style="padding:8px 10px; white-space:nowrap;">${escapeHtml((fundMetaById[fid].name || "").toUpperCase())}</th>`).join("");
-            const bodyRows = history.map((h, idx) => {
+            // v417: respect the same All/Unit Trust/Gold tab the Card/Table views use, and
+            // deleted-fund entries fall back to the "gold_"/"fund_" id prefix (see handleSaveFund)
+            // since a since-deleted fund has no surviving category record to check.
+            const allFundsNow = await readAllDB(STORES.FUNDS);
+            const categoryByFundId = {};
+            allFundsNow.forEach(f => { categoryByFundId[f.id] = f.category; });
+            const isGoldId = (fid) => categoryByFundId[fid] ? categoryByFundId[fid] === "Gold" : fid.startsWith("gold_");
+            const filteredFundOrder = fundOrder.filter(fid => {
+                if (navUpdateCategoryFilter === "all") return true;
+                return navUpdateCategoryFilter === "gold" ? isGoldId(fid) : !isGoldId(fid);
+            });
+            // A date where only the OTHER category was ever updated would otherwise show as a
+            // row of nothing but "-" once filtered — drop those rows entirely.
+            const filteredHistory = navUpdateCategoryFilter === "all" ? history
+                : history.filter(h => (h.entries || []).some(e => filteredFundOrder.includes(e.fundId)));
+            if (filteredHistory.length === 0) {
+                wrap.innerHTML = '<p style="padding:24px 4px; text-align:center; color:var(--text-muted); font-size:0.85rem;">No price history recorded for this filter yet.</p>';
+                return;
+            }
+
+            // Short header label — acronym for a Unit Trust name (dedup'd with a numeric suffix
+            // on a collision), left as-is for Gold since those names are already short.
+            const seenAcronyms = {};
+            const headerCells = filteredFundOrder.map(fid => {
+                const fullName = fundMetaById[fid].name || "";
+                let label = escapeHtml(fullName.toUpperCase());
+                if (!isGoldId(fid)) {
+                    let acr = fundHistoryAcronym(fullName);
+                    seenAcronyms[acr] = (seenAcronyms[acr] || 0) + 1;
+                    if (seenAcronyms[acr] > 1) acr += seenAcronyms[acr];
+                    label = escapeHtml(acr);
+                }
+                return `<th style="padding:8px 10px; white-space:nowrap;" title="${escapeHtml(fullName)}">${label}</th>`;
+            }).join("");
+            const bodyRows = filteredHistory.map((h, idx) => {
                 const navByFund = {};
                 (h.entries || []).forEach(e => { navByFund[e.fundId] = e; });
-                const cells = fundOrder.map(fid => {
+                const cells = filteredFundOrder.map(fid => {
                     const e = navByFund[fid];
                     return `<td style="padding:8px 10px;">${e ? formatNav(e.nav, e.currency) : "-"}</td>`;
                 }).join("");
