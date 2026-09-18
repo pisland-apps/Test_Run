@@ -10,7 +10,7 @@
         // that's the signal to hard-refresh (Ctrl/Cmd+Shift+R) or clear the site's Service
         // Worker/cache in devtools — not a signal that the deploy itself failed. The browser may
         // just be running a cached copy of the old ledger.js.
-        const APP_VERSION = "v415";
+        const APP_VERSION = "v416";
         const APP_VERSION_DATE = "2026-09-18";
 
         // v100: shared calculator-button icon (replaces the 🧮 emoji, which rendered
@@ -7752,6 +7752,8 @@
 
         let navUpdateView = "card"; // "card" | "table" | "history" — which of the 3 views is shown
         let navUpdateFundsCache = []; // funds currently held (units > 0), across every account
+        let navUpdateAllFundsCache = []; // v416: unfiltered version of the above, before the All/Unit Trust/Gold tab narrows it
+        let navUpdateCategoryFilter = "all"; // v416: "all" | "unittrust" | "gold" — see setNavUpdateCategoryFilter()
 
         // Re-fetches every currently-held fund and rebuilds all 3 views. Called once on page
         // entry and again after a successful save (so "Current: $X" and the History log both
@@ -7761,9 +7763,22 @@
             // "Currently holding" = a live positive unit balance — the same definition the Fund
             // Holdings table on each Unit Trust account page uses to decide a fund still has an
             // active position (a fully sold-out fund's record can still exist at 0 units).
-            navUpdateFundsCache = allFunds
+            navUpdateAllFundsCache = allFunds
                 .filter(f => (f.units || 0) > 0.00005)
                 .sort((a, b) => a.name.localeCompare(b.name));
+
+            // v416: only show the All/Unit Trust/Gold filter once there's actually a mix to split
+            // — a book with no gold holdings (or, in theory, only gold) just sees the plain list
+            // it always has, same spirit as accountTypeShortcutList() only offering shortcuts for
+            // types actually in use.
+            const hasGold = navUpdateAllFundsCache.some(isGoldFund);
+            const hasNonGold = navUpdateAllFundsCache.some(f => !isGoldFund(f));
+            const toggle = document.getElementById("navUpdateCategoryToggle");
+            toggle.classList.toggle("hidden", !(hasGold && hasNonGold));
+            if (!(hasGold && hasNonGold)) navUpdateCategoryFilter = "all";
+            toggle.querySelectorAll(".nav-view-toggle-btn").forEach(b => b.classList.toggle("active", b.dataset.filter === navUpdateCategoryFilter));
+
+            refreshNavUpdateFilteredCache();
 
             const dateInput = document.getElementById("navUpdateDate");
             if (dateInput && !dateInput.value) dateInput.value = todayLocalStr();
@@ -7772,6 +7787,30 @@
             renderNavUpdateTableView();
             await renderNavUpdateHistoryView();
             applyNavUpdateViewVisibility();
+        }
+
+        // Splits navUpdateAllFundsCache down to navUpdateFundsCache per navUpdateCategoryFilter —
+        // kept as its own step (rather than inline in renderNavUpdatePage) so switching the filter
+        // tab can re-slice without re-reading the DB or re-touching the NAV Date / History view.
+        function refreshNavUpdateFilteredCache() {
+            navUpdateFundsCache = navUpdateAllFundsCache.filter(f => {
+                if (navUpdateCategoryFilter === "gold") return isGoldFund(f);
+                if (navUpdateCategoryFilter === "unittrust") return !isGoldFund(f);
+                return true;
+            });
+        }
+
+        // Wired to the All/Unit Trust/Gold tabs — this is the actual fix for "don't want to
+        // update gold and unit trust prices at the same time": narrowing the list here also
+        // narrows what "Update All Prices" iterates over (handleSaveAllNav just walks
+        // navUpdateFundsCache), so picking "Gold" and saving genuinely only touches gold funds,
+        // not a re-save of every unit trust NAV left untouched on screen.
+        function setNavUpdateCategoryFilter(el) {
+            navUpdateCategoryFilter = el.dataset.filter;
+            document.querySelectorAll("#navUpdateCategoryToggle .nav-view-toggle-btn").forEach(b => b.classList.toggle("active", b.dataset.filter === navUpdateCategoryFilter));
+            refreshNavUpdateFilteredCache();
+            renderNavUpdateCardView();
+            renderNavUpdateTableView();
         }
 
         function navUpdateEmptyStateHtml() {
@@ -7932,7 +7971,12 @@
             for (const e of entries) {
                 const fund = navUpdateFundsCache.find(f => f.id === e.fundId);
                 if (!fund) continue;
-                await writeDB(STORES.FUNDS, { ...fund, currentNav: e.nav });
+                // v416 fix: this batch-save path skipped priceUpdatedAt entirely (only the
+                // Add/Edit Fund modal's handleSaveFund() stamped it), so the "priced Xd ago" Gold
+                // staleness badge never actually moved when prices were updated the normal way,
+                // from this page — the one place gold prices are realistically kept current.
+                const stamp = e.nav !== (fund.currentNav || 0) ? todayLocalStr() : (fund.priceUpdatedAt || null);
+                await writeDB(STORES.FUNDS, { ...fund, currentNav: e.nav, priceUpdatedAt: stamp });
             }
             await writeDB(STORES.NAV_HISTORY, { date: dateVal, entries });
 
@@ -19643,6 +19687,7 @@
             handleDeleteFundTxFromModal: () => handleDeleteFundTxFromModal(),
             navigateToNavUpdatePage: () => navigateToNavUpdatePage(),
             setNavUpdateView: (el) => setNavUpdateView(el),
+            setNavUpdateCategoryFilter: (el) => setNavUpdateCategoryFilter(el),
             handleSaveAllNav: () => handleSaveAllNav(),
             scrollToTop: () => scrollToTop(),
             fetchLiveFxRates: () => fetchLiveFxRates(),
